@@ -21,6 +21,7 @@ type ContainerProxiesOptions = CommandOptions & {
   tag?: string;
   platforms?: string;
   alsoLatest?: boolean;
+  only?: string;
 };
 
 const parsePlatforms = (value: string | undefined): string => {
@@ -41,10 +42,22 @@ const resolvePublishTags = (tag: string, alsoLatest: boolean | undefined): strin
   return [tag, 'latest'];
 };
 
+type PublishOnly = 'runtime' | 'gateway' | 'both';
+
+const parseOnly = (value: string | undefined): PublishOnly => {
+  const raw = (value ?? '').trim().toLowerCase();
+  if (raw === '' || raw === 'both') return 'both';
+  if (raw === 'runtime' || raw === 'gateway') return raw;
+  throw ErrorFactory.createCliError(
+    `Error: Invalid --only '${String(value)}'. Expected runtime|gateway|both.`
+  );
+};
+
 const runPublishImages = async (options: ContainerProxiesOptions): Promise<void> => {
   const tag = parseTag(options.tag);
   const platforms = parsePlatforms(options.platforms);
   const tags = resolvePublishTags(tag, options.alsoLatest);
+  const only = parseOnly(options.only);
 
   const runtimeRepo = 'zintrust/zintrust-proxy';
   const gatewayRepo = 'zintrust/zintrust-proxy-gateway';
@@ -61,28 +74,33 @@ const runPublishImages = async (options: ContainerProxiesOptions): Promise<void>
     gateway: gatewayRepo,
     platforms,
     tags,
+    only,
   });
 
-  const runtimeExit = await SpawnUtil.spawnAndWait({
-    command: 'docker',
-    args: buildArgsFor(runtimeRepo, '.'),
-    env: process.env,
-  });
-  if (runtimeExit !== 0) {
-    throw ErrorFactory.createCliError(
-      `Failed to publish ${runtimeRepo} (exit code ${runtimeExit})`
-    );
+  if (only === 'runtime' || only === 'both') {
+    const runtimeExit = await SpawnUtil.spawnAndWait({
+      command: 'docker',
+      args: buildArgsFor(runtimeRepo, '.'),
+      env: process.env,
+    });
+    if (runtimeExit !== 0) {
+      throw ErrorFactory.createCliError(
+        `Failed to publish ${runtimeRepo} (exit code ${runtimeExit})`
+      );
+    }
   }
 
-  const gatewayExit = await SpawnUtil.spawnAndWait({
-    command: 'docker',
-    args: buildArgsFor(gatewayRepo, './docker/proxy-gateway'),
-    env: process.env,
-  });
-  if (gatewayExit !== 0) {
-    throw ErrorFactory.createCliError(
-      `Failed to publish ${gatewayRepo} (exit code ${gatewayExit})`
-    );
+  if (only === 'gateway' || only === 'both') {
+    const gatewayExit = await SpawnUtil.spawnAndWait({
+      command: 'docker',
+      args: buildArgsFor(gatewayRepo, './docker/proxy-gateway'),
+      env: process.env,
+    });
+    if (gatewayExit !== 0) {
+      throw ErrorFactory.createCliError(
+        `Failed to publish ${gatewayRepo} (exit code ${gatewayExit})`
+      );
+    }
   }
 };
 
@@ -166,6 +184,11 @@ export const ContainerProxiesCommand = Object.freeze({
         command.option(
           '--no-also-latest',
           'When publishing a non-latest --tag, do not also push :latest'
+        );
+        command.option(
+          '--only <target>',
+          'Publish only one image: runtime|gateway|both (publish-images only)',
+          'both'
         );
       },
       execute: async (options: ContainerProxiesOptions): Promise<void> => {
