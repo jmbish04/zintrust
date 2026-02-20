@@ -69,6 +69,12 @@ zin cp down
 
 Compose target file: `docker-compose.proxy.yml`.
 
+### Prebuilt images (Docker Hub)
+
+If you prefer not to build proxy images locally, use the prebuilt Docker Hub images:
+
+- See `docs/docker-hub-proxies.md`
+
 ## Cloudflare Containers Proxy Worker (ccp)
 
 This is the Cloudflare-hosted equivalent of the proxy gateway pattern, implemented as a Worker plus container-backed Durable Objects.

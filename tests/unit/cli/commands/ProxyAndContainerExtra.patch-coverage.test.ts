@@ -138,6 +138,60 @@ describe('proxy/container extra patch coverage', () => {
     ).rejects.toThrow(/Usage: zin cp/);
   });
 
+  it('ContainerProxiesCommand publishes proxy images via docker buildx', async () => {
+    const { SpawnUtil } = await import('@cli/utils/spawn');
+    vi.spyOn(SpawnUtil, 'spawnAndWait').mockResolvedValue(0);
+
+    const { ContainerProxiesCommand } = await import('@cli/commands/ContainerProxiesCommand');
+
+    await ContainerProxiesCommand.create().execute({
+      args: ['publish-images'],
+      tag: '0.1.43',
+      platforms: 'linux/amd64,linux/arm64',
+      alsoLatest: true,
+    } as any);
+
+    const calls = (SpawnUtil.spawnAndWait as unknown as { mock: { calls: unknown[][] } }).mock
+      .calls;
+
+    expect(calls.length).toBeGreaterThanOrEqual(2);
+    expect(calls[0][0]).toEqual(
+      expect.objectContaining({
+        command: 'docker',
+        args: expect.arrayContaining([
+          'buildx',
+          'build',
+          '--platform',
+          'linux/amd64,linux/arm64',
+          '-t',
+          'zintrust/zintrust-proxy:0.1.43',
+          '-t',
+          'zintrust/zintrust-proxy:latest',
+          '--push',
+          '.',
+        ]),
+      })
+    );
+
+    expect(calls[1][0]).toEqual(
+      expect.objectContaining({
+        command: 'docker',
+        args: expect.arrayContaining([
+          'buildx',
+          'build',
+          '--platform',
+          'linux/amd64,linux/arm64',
+          '-t',
+          'zintrust/zintrust-proxy-gateway:0.1.43',
+          '-t',
+          'zintrust/zintrust-proxy-gateway:latest',
+          '--push',
+          './docker/proxy-gateway',
+        ]),
+      })
+    );
+  });
+
   it('ContainerWorkers and DeployContainerProxies commands execute expected compose args', async () => {
     const utils = await import('@cli/commands/DockerComposeCommandUtils');
     vi.spyOn(utils, 'resolveComposePath')

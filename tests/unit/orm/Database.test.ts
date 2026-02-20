@@ -2,9 +2,12 @@
 import { D1Adapter } from '@orm/adapters/D1Adapter';
 import { D1RemoteAdapter } from '@orm/adapters/D1RemoteAdapter';
 import { MySQLAdapter } from '@orm/adapters/MySQLAdapter';
+import { MySQLProxyAdapter } from '@orm/adapters/MySQLProxyAdapter';
 import { PostgreSQLAdapter } from '@orm/adapters/PostgreSQLAdapter';
+import { PostgreSQLProxyAdapter } from '@orm/adapters/PostgreSQLProxyAdapter';
 import { SQLiteAdapter } from '@orm/adapters/SQLiteAdapter';
 import { SQLServerAdapter } from '@orm/adapters/SQLServerAdapter';
+import { createSqlServerProxyAdapter } from '@orm/adapters/SqlServerProxyAdapter';
 import type { IDatabase } from '@orm/Database';
 import { Database, resetDatabase, useDatabase } from '@orm/Database';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -52,8 +55,38 @@ vi.mock('@orm/adapters/PostgreSQLAdapter', () => {
   };
 });
 
+vi.mock('@orm/adapters/PostgreSQLProxyAdapter', () => ({
+  PostgreSQLProxyAdapter: {
+    create: vi.fn().mockReturnValue({
+      connect: vi.fn().mockResolvedValue(undefined),
+      disconnect: vi.fn().mockResolvedValue(undefined),
+      query: vi.fn().mockResolvedValue({ rows: [] }),
+      queryOne: vi.fn().mockResolvedValue(null),
+      transaction: vi.fn().mockImplementation((cb) => cb()),
+      getType: vi.fn().mockReturnValue('postgresql'),
+      getPlaceholder: vi.fn().mockReturnValue('$1'),
+      rawQuery: vi.fn().mockResolvedValue([]),
+    }),
+  },
+}));
+
 vi.mock('@orm/adapters/MySQLAdapter', () => ({
   MySQLAdapter: {
+    create: vi.fn().mockReturnValue({
+      connect: vi.fn().mockResolvedValue(undefined),
+      disconnect: vi.fn().mockResolvedValue(undefined),
+      query: vi.fn().mockResolvedValue({ rows: [] }),
+      queryOne: vi.fn().mockResolvedValue(null),
+      transaction: vi.fn().mockImplementation((cb) => cb()),
+      getType: vi.fn().mockReturnValue('mysql'),
+      getPlaceholder: vi.fn().mockReturnValue('?'),
+      rawQuery: vi.fn().mockResolvedValue([]),
+    }),
+  },
+}));
+
+vi.mock('@orm/adapters/MySQLProxyAdapter', () => ({
+  MySQLProxyAdapter: {
     create: vi.fn().mockReturnValue({
       connect: vi.fn().mockResolvedValue(undefined),
       disconnect: vi.fn().mockResolvedValue(undefined),
@@ -80,6 +113,19 @@ vi.mock('@orm/adapters/SQLServerAdapter', () => ({
       rawQuery: vi.fn().mockResolvedValue([]),
     }),
   },
+}));
+
+vi.mock('@orm/adapters/SqlServerProxyAdapter', () => ({
+  createSqlServerProxyAdapter: vi.fn().mockReturnValue({
+    connect: vi.fn().mockResolvedValue(undefined),
+    disconnect: vi.fn().mockResolvedValue(undefined),
+    query: vi.fn().mockResolvedValue({ rows: [] }),
+    queryOne: vi.fn().mockResolvedValue(null),
+    transaction: vi.fn().mockImplementation((cb) => cb()),
+    getType: vi.fn().mockReturnValue('sqlserver'),
+    getPlaceholder: vi.fn().mockReturnValue('@param1'),
+    rawQuery: vi.fn().mockResolvedValue([]),
+  }),
 }));
 
 vi.mock('@orm/adapters/D1Adapter', () => ({
@@ -119,6 +165,13 @@ describe('Database', () => {
     resetDatabase();
     vi.clearAllMocks();
 
+    delete process.env.USE_MYSQL_PROXY;
+    delete process.env.MYSQL_PROXY_URL;
+    delete process.env.USE_POSTGRES_PROXY;
+    delete process.env.POSTGRES_PROXY_URL;
+    delete process.env.USE_SQLSERVER_PROXY;
+    delete process.env.SQLSERVER_PROXY_URL;
+
     // Register adapters in the registry for tests to use
     const { DatabaseAdapterRegistry } = await import('src/orm/DatabaseAdapterRegistry');
     DatabaseAdapterRegistry.register('sqlite', SQLiteAdapter.create);
@@ -139,6 +192,38 @@ describe('Database', () => {
     db = Database.create({ driver: 'postgresql', database: 'test' });
     expect(PostgreSQLAdapter.create).toHaveBeenCalled();
     expect(db.getType()).toBe('postgresql');
+  });
+
+  it('selects MySQL proxy adapter in Node when USE_MYSQL_PROXY=true', () => {
+    process.env.USE_MYSQL_PROXY = 'true';
+    process.env.MYSQL_PROXY_URL = 'http://localhost:8787/mysql';
+
+    db = Database.create({ driver: 'mysql', database: 'test' } as any);
+
+    expect(MySQLProxyAdapter.create).toHaveBeenCalled();
+    expect(MySQLAdapter.create).not.toHaveBeenCalled();
+    expect(db.getType()).toBe('mysql');
+  });
+
+  it('selects PostgreSQL proxy adapter in Node when POSTGRES_PROXY_URL is set', () => {
+    process.env.POSTGRES_PROXY_URL = 'http://localhost:8787/postgres';
+
+    db = Database.create({ driver: 'postgresql', database: 'test' } as any);
+
+    expect(PostgreSQLProxyAdapter.create).toHaveBeenCalled();
+    expect(PostgreSQLAdapter.create).not.toHaveBeenCalled();
+    expect(db.getType()).toBe('postgresql');
+  });
+
+  it('selects SQL Server proxy adapter in Node when USE_SQLSERVER_PROXY=true', () => {
+    process.env.USE_SQLSERVER_PROXY = 'true';
+    process.env.SQLSERVER_PROXY_URL = 'http://localhost:8787/sqlserver';
+
+    db = Database.create({ driver: 'sqlserver', database: 'test' } as any);
+
+    expect(createSqlServerProxyAdapter).toHaveBeenCalled();
+    expect(SQLServerAdapter.create).not.toHaveBeenCalled();
+    expect(db.getType()).toBe('sqlserver');
   });
 
   it('should create D1Remote adapter', () => {

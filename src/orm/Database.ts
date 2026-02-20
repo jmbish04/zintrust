@@ -18,6 +18,7 @@ import { PostgreSQLAdapter } from '@orm/adapters/PostgreSQLAdapter';
 import { PostgreSQLProxyAdapter } from '@orm/adapters/PostgreSQLProxyAdapter';
 import { SQLiteAdapter } from '@orm/adapters/SQLiteAdapter';
 import { SQLServerAdapter } from '@orm/adapters/SQLServerAdapter';
+import { createSqlServerProxyAdapter } from '@orm/adapters/SqlServerProxyAdapter';
 import type { DatabaseConfig, IDatabaseAdapter, QueryResult } from '@orm/DatabaseAdapter';
 import { DatabaseAdapterRegistry } from '@orm/DatabaseAdapterRegistry';
 import type { IQueryBuilder } from '@orm/QueryBuilder';
@@ -57,7 +58,7 @@ const resolveMySqlProxyAdapter = (cfg: DatabaseConfig): IDatabaseAdapter | null 
   const proxyUrl = Env.get('MYSQL_PROXY_URL', '').trim();
   const useProxy = Env.getBool('USE_MYSQL_PROXY', false);
   if (useProxy || proxyUrl.length > 0) {
-    Logger.info('[Database] Selecting MySQL proxy adapter for Workers runtime', {
+    Logger.info('[Database] Selecting MySQL proxy adapter', {
       driver: cfg.driver,
       useMySqlProxy: useProxy,
       mysqlProxyUrlConfigured: proxyUrl.length > 0,
@@ -73,7 +74,7 @@ const resolvePostgresProxyAdapter = (cfg: DatabaseConfig): IDatabaseAdapter | nu
   const proxyUrl = Env.get('POSTGRES_PROXY_URL', '').trim();
   const useProxy = Env.getBool('USE_POSTGRES_PROXY', false);
   if (useProxy || proxyUrl.length > 0) {
-    Logger.info('[Database] Selecting PostgreSQL proxy adapter for Workers runtime', {
+    Logger.info('[Database] Selecting PostgreSQL proxy adapter', {
       driver: cfg.driver,
       usePostgresProxy: useProxy,
       postgresProxyUrlConfigured: proxyUrl.length > 0,
@@ -81,6 +82,37 @@ const resolvePostgresProxyAdapter = (cfg: DatabaseConfig): IDatabaseAdapter | nu
     });
     return PostgreSQLProxyAdapter.create(cfg);
   }
+  return null;
+};
+
+const resolveSqlServerProxyAdapter = (cfg: DatabaseConfig): IDatabaseAdapter | null => {
+  if (cfg.driver !== 'sqlserver') return null;
+  const proxyUrl = Env.get('SQLSERVER_PROXY_URL', '').trim();
+  const useProxy = Env.getBool('USE_SQLSERVER_PROXY', false);
+  if (useProxy || proxyUrl.length > 0) {
+    Logger.info('[Database] Selecting SQL Server proxy adapter', {
+      driver: cfg.driver,
+      useSqlServerProxy: useProxy,
+      sqlServerProxyUrlConfigured: proxyUrl.length > 0,
+      sqlServerProxyUrl: proxyUrl,
+    });
+    return createSqlServerProxyAdapter();
+  }
+  return null;
+};
+
+const resolveExplicitProxyAdapter = (cfg: DatabaseConfig): IDatabaseAdapter | null => {
+  // Allow proxy adapters to be forced in any runtime (Node or Workers) when
+  // the feature flags or proxy URLs are configured.
+  const mysqlProxy = resolveMySqlProxyAdapter(cfg);
+  if (mysqlProxy) return mysqlProxy;
+
+  const postgresProxy = resolvePostgresProxyAdapter(cfg);
+  if (postgresProxy) return postgresProxy;
+
+  const sqlServerProxy = resolveSqlServerProxyAdapter(cfg);
+  if (sqlServerProxy) return sqlServerProxy;
+
   return null;
 };
 
@@ -122,6 +154,8 @@ const resolveWorkersAdapter = (cfg: DatabaseConfig): IDatabaseAdapter | null => 
 };
 
 const createAdapter = (cfg: DatabaseConfig): IDatabaseAdapter => {
+  const explicitProxy = resolveExplicitProxyAdapter(cfg);
+  if (explicitProxy) return explicitProxy;
   const workersAdapter = resolveWorkersAdapter(cfg);
   if (workersAdapter) return workersAdapter;
   const registered = DatabaseAdapterRegistry.get(cfg.driver);
