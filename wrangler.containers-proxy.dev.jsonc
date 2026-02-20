@@ -2,13 +2,18 @@
  * =========================================================================
  * ZinTrust Cloudflare Containers Proxy (local dev)
  * =========================================================================
- * This config is optimized for local development:
- * - Uses a prebuilt Docker image name so `wrangler dev` does NOT rebuild on
- *   every startup.
- * - Rebuild the image only when you want to: `npm run dev:cp -- --build`.
+ * This config is optimised for local development:
+ * - Uses the prebuilt Docker Hub image as the container base so `wrangler dev`
+ *   does NOT require a local build on every startup.
+ * - Wrangler's buildx step pulls the image automatically on first run.
+ * - Refresh the Hub image when you want to pick up the latest release:
+ *     npm run dev:cp -- --pull
  *
- * Image build command (note: Wrangler targets linux/amd64):
- *   docker buildx build --platform linux/amd64 --load -t zintrust-containers-proxy:local-amd64 .
+ * Base image (both amd64 + arm64 on Hub):
+ *   docker.io/zintrust/zintrust-proxy:latest
+ *
+ * Thin wrapper Dockerfile location:
+ *   docker/containers-proxy-dev/Dockerfile
  * =========================================================================
  */
 
@@ -25,10 +30,13 @@
   // --------------------------------------------------------------------------
   // CONTAINERS
   // --------------------------------------------------------------------------
-  // IMPORTANT: Wrangler requires a Dockerfile path or a registry image URL.
-  // It does NOT accept local image tags like "name:tag" here.
-  // This wrapper Dockerfile keeps startup fast while letting you opt-in to
-  // rebuilding the base image via `npm run dev:cp -- --build`.
+  // Wrangler requires a Dockerfile path (not a bare image tag) for the `image`
+  // field. The wrapper Dockerfile at docker/containers-proxy-dev/Dockerfile does
+  // a single `FROM docker.io/zintrust/zintrust-proxy:latest`, so Wrangler's
+  // buildx step pulls the Hub image automatically.
+  //
+  // To refresh the Hub image before starting:
+  //   npm run dev:cp -- --pull
   "containers": [
     {
       "class_name": "ZintrustMySqlProxyContainer",

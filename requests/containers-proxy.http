@@ -1,0 +1,190 @@
+### ZinTrust – Containers Proxy (Cloudflare + Docker Compose)
+### Requires VS Code extension: "REST Client" (humao.rest-client)
+###
+### Tests both runtimes so you can compare responses side-by-side:
+###
+###   Cloudflare Containers (wrangler dev)
+###     npm run dev:cp
+###
+###   Docker Compose gateway
+###     zin cp up  (gateway exposed on :8800 by default)
+###
+### All path prefixes are the same in both runtimes:
+###   /health          → gateway self
+###   /mysql/health    → proxy-mysql
+###   /postgres/health → proxy-pg
+###   /redis/health    → proxy-redis
+###   /mongodb/health  → proxy-mongodb
+###   /sqlserver/health→ proxy-sqlserver
+###   /smtp/health     → proxy-smtp
+
+# ─── Base URLs ────────────────────────────────────────────────────────────────
+@cfBase   = http://localhost:8787
+@dcBase   = http://localhost:8800
+
+# Signing credentials (must match APP_KEY / *_PROXY_KEY_ID / *_PROXY_SECRET in .dev.vars)
+@keyId    = dev-key
+@proxySignature = dev-sig
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CLOUDFLARE CONTAINERS (wrangler dev)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [CF] Gateway health
+GET {{cfBase}}/health
+
+###
+
+### [CF] MySQL proxy health
+GET {{cfBase}}/mysql/health
+
+###
+
+### [CF] PostgreSQL proxy health
+GET {{cfBase}}/postgres/health
+
+###
+
+### [CF] Redis proxy health
+GET {{cfBase}}/redis/health
+
+###
+
+### [CF] MongoDB proxy health
+GET {{cfBase}}/mongodb/health
+
+###
+
+### [CF] SQL Server proxy health
+GET {{cfBase}}/sqlserver/health
+
+###
+
+### [CF] SMTP proxy health
+GET {{cfBase}}/smtp/health
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DOCKER COMPOSE GATEWAY (zin cp up)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [DC] Gateway health
+GET {{dcBase}}/health
+
+###
+
+### [DC] MySQL proxy health
+GET {{dcBase}}/mysql/health
+
+###
+
+### [DC] PostgreSQL proxy health
+GET {{dcBase}}/postgres/health
+
+###
+
+### [DC] Redis proxy health
+GET {{dcBase}}/redis/health
+
+###
+
+### [DC] MongoDB proxy health
+GET {{dcBase}}/mongodb/health
+
+###
+
+### [DC] SQL Server proxy health
+GET {{dcBase}}/sqlserver/health
+
+###
+
+### [DC] SMTP proxy health
+GET {{dcBase}}/smtp/health
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FUNCTIONAL – MySQL query (via Docker Compose gateway)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [DC] MySQL – SELECT 1
+POST {{dcBase}}/mysql/query
+Content-Type: application/json
+X-Proxy-Key-Id: {{keyId}}
+X-Proxy-Signature: {{proxySignature}}
+
+{
+  "sql": "SELECT 1 AS ok"
+}
+
+###
+
+### [DC] MySQL – list tables
+POST {{dcBase}}/mysql/query
+Content-Type: application/json
+X-Proxy-Key-Id: {{keyId}}
+X-Proxy-Signature: {{proxySignature}}
+
+{
+  "sql": "SHOW TABLES"
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FUNCTIONAL – PostgreSQL query (via Docker Compose gateway)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [DC] Postgres – SELECT 1
+POST {{dcBase}}/postgres/query
+Content-Type: application/json
+X-Proxy-Key-Id: {{keyId}}
+X-Proxy-Signature: {{proxySignature}}
+
+{
+  "sql": "SELECT 1 AS ok"
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FUNCTIONAL – Redis (via Docker Compose gateway)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### [DC] Redis – PING
+POST {{dcBase}}/redis/command
+Content-Type: application/json
+X-Proxy-Key-Id: {{keyId}}
+X-Proxy-Signature: {{proxySignature}}
+
+{
+  "command": "PING"
+}
+
+###
+
+### [DC] Redis – SET + GET
+POST {{dcBase}}/redis/command
+Content-Type: application/json
+X-Proxy-Key-Id: {{keyId}}
+X-Proxy-Signature: {{proxySignature}}
+
+{
+  "command": "SET",
+  "args": ["zintrust:test", "hello-from-proxy", "EX", 60]
+}
+
+###
+
+POST {{dcBase}}/redis/command
+Content-Type: application/json
+X-Proxy-Key-Id: {{keyId}}
+X-Proxy-Signature: {{proxySignature}}
+
+{
+  "command": "GET",
+  "args": ["zintrust:test"]
+}
+
+###

@@ -96,7 +96,7 @@ Content-Type: application/json
 # X-CSRF-Token: {{csrf}}
 
 {
-  "email": "flarrer5@example.com",
+  "email": "flarre5@example.com",
   "password": "password"
 }
 

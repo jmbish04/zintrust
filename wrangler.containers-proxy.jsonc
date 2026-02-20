@@ -38,20 +38,42 @@
   // --------------------------------------------------------------------------
   // One DO class per proxy (Option A).
   "containers": [
-    { "class_name": "ZintrustMySqlProxyContainer", "image": "./Dockerfile", "max_instances": 10 },
+    {
+      "class_name": "ZintrustMySqlProxyContainer",
+      "image": "docker.io/zintrust/zintrust-proxy:latest",
+      "port": 8789,
+      "max_instances": 10,
+    },
     {
       "class_name": "ZintrustPostgresProxyContainer",
-      "image": "./Dockerfile",
+      "image": "docker.io/zintrust/zintrust-proxy:latest",
+      "port": 8790,
       "max_instances": 10,
     },
-    { "class_name": "ZintrustRedisProxyContainer", "image": "./Dockerfile", "max_instances": 10 },
-    { "class_name": "ZintrustMongoDbProxyContainer", "image": "./Dockerfile", "max_instances": 10 },
+    {
+      "class_name": "ZintrustRedisProxyContainer",
+      "image": "docker.io/zintrust/zintrust-proxy:latest",
+      "port": 8791,
+      "max_instances": 10,
+    },
+    {
+      "class_name": "ZintrustMongoDbProxyContainer",
+      "image": "docker.io/zintrust/zintrust-proxy:latest",
+      "port": 8792,
+      "max_instances": 10,
+    },
     {
       "class_name": "ZintrustSqlServerProxyContainer",
-      "image": "./Dockerfile",
+      "image": "docker.io/zintrust/zintrust-proxy:latest",
+      "port": 8793,
       "max_instances": 10,
     },
-    { "class_name": "ZintrustSmtpProxyContainer", "image": "./Dockerfile", "max_instances": 10 },
+    {
+      "class_name": "ZintrustSmtpProxyContainer",
+      "image": "docker.io/zintrust/zintrust-proxy:latest",
+      "port": 8794,
+      "max_instances": 10,
+    },
   ],
 
   // Durable Object bindings (required to talk to containers)
@@ -101,31 +123,37 @@
         {
           "class_name": "ZintrustMySqlProxyContainer",
           "image": "./Dockerfile",
+          "port": 8789,
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustPostgresProxyContainer",
           "image": "./Dockerfile",
+          "port": 8790,
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustRedisProxyContainer",
           "image": "./Dockerfile",
+          "port": 8791,
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustMongoDbProxyContainer",
           "image": "./Dockerfile",
+          "port": 8792,
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustSqlServerProxyContainer",
           "image": "./Dockerfile",
+          "port": 8793,
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustSmtpProxyContainer",
           "image": "./Dockerfile",
+          "port": 8794,
           "max_instances": 10,
         },
       ],
@@ -172,31 +200,37 @@
         {
           "class_name": "ZintrustMySqlProxyContainer",
           "image": "./Dockerfile",
+          "port": 8789,
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustPostgresProxyContainer",
           "image": "./Dockerfile",
+          "port": 8790,
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustRedisProxyContainer",
           "image": "./Dockerfile",
+          "port": 8791,
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustMongoDbProxyContainer",
           "image": "./Dockerfile",
+          "port": 8792,
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustSqlServerProxyContainer",
           "image": "./Dockerfile",
+          "port": 8793,
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustSmtpProxyContainer",
           "image": "./Dockerfile",
+          "port": 8794,
           "max_instances": 10,
         },
       ],
