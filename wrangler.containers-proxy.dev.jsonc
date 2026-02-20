@@ -1,26 +1,15 @@
 /**
- * ============================================================================
- * ZinTrust Cloudflare Containers Proxy
- * ============================================================================
- * This Worker acts as the "gateway" for the DB/KV/SMTP proxy stack, similar to
- * `docker-compose.proxy.yml`'s `proxy-gateway`, but on Cloudflare.
+ * =========================================================================
+ * ZinTrust Cloudflare Containers Proxy (local dev)
+ * =========================================================================
+ * This config is optimized for local development:
+ * - Uses a prebuilt Docker image name so `wrangler dev` does NOT rebuild on
+ *   every startup.
+ * - Rebuild the image only when you want to: `npm run dev:cp -- --build`.
  *
- * Requests are routed by path prefix:
- *   /mysql/*     -> ZintrustMySqlProxyContainer (port 8789)
- *   /postgres/*  -> ZintrustPostgresProxyContainer (port 8790)
- *   /redis/*     -> ZintrustRedisProxyContainer (port 8791)
- *   /mongodb/*   -> ZintrustMongoDbProxyContainer (port 8792)
- *   /sqlserver/* -> ZintrustSqlServerProxyContainer (port 8793)
- *   /smtp/*      -> ZintrustSmtpProxyContainer (port 8794)
- *
- * Runtime env vars are provided via:
- * - `vars` (non-secret)
- * - `wrangler secret put <NAME>` (secret)
- *
- * Notes:
- * - Docker Compose is NOT used on Cloudflare; this file is the deployment source.
- * - `wrangler deploy` builds the container image(s) using your local Docker.
- * ============================================================================
+ * Image build command (note: Wrangler targets linux/amd64):
+ *   docker buildx build --platform linux/amd64 --load -t zintrust-containers-proxy:local-amd64 .
+ * =========================================================================
  */
 
 {
@@ -36,25 +25,43 @@
   // --------------------------------------------------------------------------
   // CONTAINERS
   // --------------------------------------------------------------------------
-  // One DO class per proxy (Option A).
+  // IMPORTANT: Wrangler requires a Dockerfile path or a registry image URL.
+  // It does NOT accept local image tags like "name:tag" here.
+  // This wrapper Dockerfile keeps startup fast while letting you opt-in to
+  // rebuilding the base image via `npm run dev:cp -- --build`.
   "containers": [
-    { "class_name": "ZintrustMySqlProxyContainer", "image": "./Dockerfile", "max_instances": 10 },
+    {
+      "class_name": "ZintrustMySqlProxyContainer",
+      "image": "./docker/containers-proxy-dev/Dockerfile",
+      "max_instances": 10,
+    },
     {
       "class_name": "ZintrustPostgresProxyContainer",
-      "image": "./Dockerfile",
+      "image": "./docker/containers-proxy-dev/Dockerfile",
       "max_instances": 10,
     },
-    { "class_name": "ZintrustRedisProxyContainer", "image": "./Dockerfile", "max_instances": 10 },
-    { "class_name": "ZintrustMongoDbProxyContainer", "image": "./Dockerfile", "max_instances": 10 },
+    {
+      "class_name": "ZintrustRedisProxyContainer",
+      "image": "./docker/containers-proxy-dev/Dockerfile",
+      "max_instances": 10,
+    },
+    {
+      "class_name": "ZintrustMongoDbProxyContainer",
+      "image": "./docker/containers-proxy-dev/Dockerfile",
+      "max_instances": 10,
+    },
     {
       "class_name": "ZintrustSqlServerProxyContainer",
-      "image": "./Dockerfile",
+      "image": "./docker/containers-proxy-dev/Dockerfile",
       "max_instances": 10,
     },
-    { "class_name": "ZintrustSmtpProxyContainer", "image": "./Dockerfile", "max_instances": 10 },
+    {
+      "class_name": "ZintrustSmtpProxyContainer",
+      "image": "./docker/containers-proxy-dev/Dockerfile",
+      "max_instances": 10,
+    },
   ],
 
-  // Durable Object bindings (required to talk to containers)
   "durable_objects": {
     "bindings": [
       { "name": "ZT_PROXY_MYSQL", "class_name": "ZintrustMySqlProxyContainer" },
@@ -66,7 +73,6 @@
     ],
   },
 
-  // Migrations must use `new_sqlite_classes` for container-enabled Durable Objects
   "migrations": [
     {
       "tag": "containers-proxy-v1",
@@ -94,38 +100,38 @@
         "CSRF_SKIP_PATHS": "/api/*,/queue-monitor/*",
       },
 
-      // NOTE: Wrangler's env selection does not reliably inherit container/DO
-      // bindings from the top-level config for JSONC configs.
-      // Keep these duplicated so `wrangler dev --env staging` works.
+      // Wrangler env selection does not reliably inherit container/DO bindings
+      // from the top-level config for JSONC configs. Keep these duplicated so
+      // `wrangler dev --env staging` works.
       "containers": [
         {
           "class_name": "ZintrustMySqlProxyContainer",
-          "image": "./Dockerfile",
+          "image": "./docker/containers-proxy-dev/Dockerfile",
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustPostgresProxyContainer",
-          "image": "./Dockerfile",
+          "image": "./docker/containers-proxy-dev/Dockerfile",
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustRedisProxyContainer",
-          "image": "./Dockerfile",
+          "image": "./docker/containers-proxy-dev/Dockerfile",
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustMongoDbProxyContainer",
-          "image": "./Dockerfile",
+          "image": "./docker/containers-proxy-dev/Dockerfile",
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustSqlServerProxyContainer",
-          "image": "./Dockerfile",
+          "image": "./docker/containers-proxy-dev/Dockerfile",
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustSmtpProxyContainer",
-          "image": "./Dockerfile",
+          "image": "./docker/containers-proxy-dev/Dockerfile",
           "max_instances": 10,
         },
       ],
@@ -154,9 +160,8 @@
           ],
         },
       ],
-      // Add routes here when ready:
-      // "routes": [{ "pattern": "proxy-staging.zintrust.com", "custom_domain": true }]
     },
+
     "production": {
       "name": "zintrust-containers-proxy-production",
       "minify": true,
@@ -166,37 +171,35 @@
         "CSRF_SKIP_PATHS": "/api/*,/queue-monitor/*",
       },
 
-      // Keep these duplicated so `wrangler dev/deploy --env production` has
-      // the same container/DO bindings as the top-level config.
       "containers": [
         {
           "class_name": "ZintrustMySqlProxyContainer",
-          "image": "./Dockerfile",
+          "image": "./docker/containers-proxy-dev/Dockerfile",
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustPostgresProxyContainer",
-          "image": "./Dockerfile",
+          "image": "./docker/containers-proxy-dev/Dockerfile",
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustRedisProxyContainer",
-          "image": "./Dockerfile",
+          "image": "./docker/containers-proxy-dev/Dockerfile",
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustMongoDbProxyContainer",
-          "image": "./Dockerfile",
+          "image": "./docker/containers-proxy-dev/Dockerfile",
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustSqlServerProxyContainer",
-          "image": "./Dockerfile",
+          "image": "./docker/containers-proxy-dev/Dockerfile",
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustSmtpProxyContainer",
-          "image": "./Dockerfile",
+          "image": "./docker/containers-proxy-dev/Dockerfile",
           "max_instances": 10,
         },
       ],
@@ -225,8 +228,6 @@
           ],
         },
       ],
-      // Add routes here when ready:
-      // "routes": [{ "pattern": "proxy.zintrust.com", "custom_domain": true }]
     },
   },
 }

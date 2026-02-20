@@ -96,8 +96,10 @@ USER nodejs
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD node -e "require('node:http').get('http://localhost:7772/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
 
-# Expose port
-EXPOSE 7772
+# Expose ports
+# - 7772: default app server port for this image
+# - 8789-8794: Cloudflare Containers proxy ports (MySQL/Postgres/Redis/MongoDB/SQLServer/SMTP)
+EXPOSE 7772 8789 8790 8791 8792 8793 8794
 
 # Start application (compiled JS; no tsx needed in runtime)
 CMD ["node", "dist/src/boot/bootstrap.js"]

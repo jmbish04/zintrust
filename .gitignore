@@ -108,3 +108,4 @@ promotion.zip
 .github/instructions/helper_usage.instructions.md
 routes/DirectTestRoutes.ts
 routes/TestRoutes.ts
+.dev.vars

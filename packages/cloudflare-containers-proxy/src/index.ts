@@ -428,6 +428,18 @@ export default {
     }
 
     const namespace = env[def.binding];
+    if (!namespace || typeof namespace.getByName !== 'function') {
+      return createJson(
+        {
+          error: 'missing_binding',
+          service: 'zintrust-containers-proxy',
+          binding: def.binding,
+          message:
+            'Durable Object binding is missing. Ensure your Wrangler config defines durable_objects bindings for ZT_PROXY_* (and containers/migrations) for the selected --env.',
+        },
+        { status: 500 }
+      );
+    }
     const stub = namespace.getByName(CONTAINER_INSTANCE_NAME);
     return stub.fetch(rewritePrefix(request, def.prefix));
   },
