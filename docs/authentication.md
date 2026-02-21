@@ -62,7 +62,14 @@ Router.get(router, '/api/v1/profile', handler, { middleware: ['auth', 'jwt'] });
 For service-to-service communication, you can use API keys:
 
 ```typescript
-router.group({ middleware: ['auth:api-key'] }, (r) => {
-  r.get('/stats', 'StatsController@index');
-});
+Router.group(
+  router,
+  '/api',
+  (r) => {
+    Router.get(r, '/stats', async (_req, res) => {
+      res.json({ ok: true });
+    });
+  },
+  { middleware: ['auth:api-key'] }
+);
 ```

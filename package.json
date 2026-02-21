@@ -65,6 +65,7 @@
     "deploy:kv": "wrangler deploy --env kv-proxy",
     "deploy:cp": "./bin/z.ts deploy:ccp",
     "dev:cp": "node scripts/dev-cp.mjs",
+    "dev:cp:clean": "node scripts/dev-cp.mjs --clean-images",
     "dev:cp:build": "npm run dev:cp -- --pull",
     "dev:cp:pull": "npm run dev:cp -- --pull",
     "dev:d1": "wrangler dev --env d1-proxy",

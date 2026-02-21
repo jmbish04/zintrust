@@ -10,6 +10,7 @@
 //
 // Options:
 //   --pull / --build   Run `docker pull` to refresh the Hub image first
+//   --clean-images      Remove unused old cloudflare-dev/zintrust*proxycontainer:* images before starting
 //   --env <name>       Wrangler environment (default: staging)
 //   -c <path>          Wrangler config file (default: wrangler.containers-proxy.dev.jsonc)
 
@@ -33,6 +34,7 @@ const CONFIG =
 
 const HUB_IMAGE = 'docker.io/zintrust/zintrust-proxy:latest';
 const SHOULD_PULL = hasFlag('--pull') || hasFlag('--build');
+const SHOULD_CLEAN_IMAGES = hasFlag('--clean-images');
 
 const MAX_CAPTURE_CHARS = 200_000;
 
@@ -90,6 +92,64 @@ const dockerTag = (source, target) => {
     env: process.env,
   });
   return typeof result.status === 'number' ? result.status : 1;
+};
+
+const runDocker = (args) => {
+  return spawnSync('docker', args, {
+    env: process.env,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    encoding: 'utf8',
+  });
+};
+
+const splitLines = (value) =>
+  String(value ?? '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+const cleanupOldCloudflareDevImages = () => {
+  // Only remove images that are not referenced by ANY container.
+  // This keeps current dev sessions safe.
+  const imagesResult = runDocker(['image', 'ls', '--format', '{{.Repository}}:{{.Tag}}\t{{.ID}}']);
+
+  if (imagesResult.status !== 0) {
+    // Docker not available; skip.
+    return;
+  }
+
+  const allImages = splitLines(imagesResult.stdout);
+  const candidates = allImages
+    .map((line) => {
+      const [ref, id] = line.split('\t');
+      return { ref, id };
+    })
+    .filter(({ ref }) =>
+      /^cloudflare-dev\/zintrust.*proxycontainer:[^\s]+$/.test(String(ref ?? ''))
+    );
+
+  if (candidates.length === 0) return;
+
+  const usedImagesResult = runDocker(['ps', '-a', '--format', '{{.Image}}']);
+  const usedRefs = new Set(splitLines(usedImagesResult.stdout));
+
+  // Note: Docker doesn't reliably expose ImageID in templates across versions,
+  // so we only guard by exact ref usage. This is still safe because containers
+  // typically reference the tag they were created from.
+  const toRemove = candidates.filter(({ ref }) => !usedRefs.has(ref));
+  if (toRemove.length === 0) return;
+
+  try {
+    process.stderr.write(
+      `[dev:cp] Cleaning ${toRemove.length} unused cloudflare-dev proxy images...\n`
+    );
+  } catch {
+    // ignore
+  }
+
+  for (const img of toRemove) {
+    runDocker(['image', 'rm', '-f', img.ref]);
+  }
 };
 
 const runWithLiveOutput = async (command, args) => {
@@ -156,6 +216,10 @@ if (SHOULD_PULL) {
     console.error(`[dev:cp] docker pull failed (exit ${result.status})`);
     process.exit(result.status ?? 1);
   }
+}
+
+if (SHOULD_CLEAN_IMAGES) {
+  cleanupOldCloudflareDevImages();
 }
 
 // Wrangler (as of some versions) can fail hard on a cleanup step:

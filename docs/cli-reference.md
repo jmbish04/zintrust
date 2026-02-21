@@ -82,6 +82,18 @@ zin deploy:ccp -e staging
 - `zin cp down`: Stop proxy stack
 - `zin cp down --volumes`: Stop proxy stack and remove named volumes
 
+Publish (Docker Hub, requires repo/org access):
+
+- `zin cp publish-images`: Publish proxy images via Docker buildx (runtime + gateway)
+- `zin cp publish-proxy`: Publish only the runtime image (`zintrust/zintrust-proxy`)
+- `zin cp publish-gateway`: Publish only the gateway image (`zintrust/zintrust-proxy-gateway`)
+
+Common publish options:
+
+- `--tag <tag>`: Tag to publish (default: `latest`)
+- `--platforms <list>`: Comma list for buildx (default: `linux/amd64,linux/arm64`)
+- `--no-also-latest`: If `--tag` is not `latest`, do not also push `:latest`
+
 ## Routes Command
 
 Lists all routes registered by your router (including group prefixes) and prints a table.

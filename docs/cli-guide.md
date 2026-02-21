@@ -103,6 +103,19 @@ zin cp up -d
 zin cp down
 ```
 
+Publishing proxy images (maintainers / requires Docker Hub access):
+
+```bash
+# runtime image only
+zin cp publish-proxy --tag 0.1.46
+
+# gateway image only
+zin cp publish-gateway --tag 0.1.46
+
+# both images
+zin cp publish-images --tag 0.1.46
+```
+
 Cloud deploy targets continue to work with `zin deploy <target>`:
 
 ```bash

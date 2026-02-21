@@ -67,6 +67,14 @@ zin cp up -d
 zin cp down
 ```
 
+Publish proxy images (maintainers / Docker Hub access required):
+
+```bash
+zin cp publish-proxy --tag 0.1.46
+zin cp publish-gateway --tag 0.1.46
+zin cp publish-images --tag 0.1.46
+```
+
 Compose target file: `docker-compose.proxy.yml`.
 
 ### Prebuilt images (Docker Hub)
@@ -101,6 +109,12 @@ zin docker -c wrangler.containers-proxy.jsonc -e staging
 
 # short alias
 zin dk -e staging
+```
+
+Tip: Wrangler creates many `cloudflare-dev/*` image tags during local dev. To clean up unused old tags before starting the dev server:
+
+```bash
+npm run dev:cp:clean
 ```
 
 The gateway routes by path prefix (mirrors the Compose gateway paths):

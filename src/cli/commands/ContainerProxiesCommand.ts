@@ -9,7 +9,13 @@ import { Logger } from '@config/logger';
 import { ErrorFactory } from '@exceptions/ZintrustError';
 import type { Command } from 'commander';
 
-type ContainerProxiesAction = 'build' | 'up' | 'down' | 'publish-images';
+type ContainerProxiesAction =
+  | 'build'
+  | 'up'
+  | 'down'
+  | 'publish-images'
+  | 'publish-proxy'
+  | 'publish-gateway';
 
 type ContainerProxiesOptions = CommandOptions & {
   detach?: boolean;
@@ -153,7 +159,11 @@ const normalizeAction = (raw?: string): ContainerProxiesAction => {
   const value = (raw ?? '').trim().toLowerCase();
   if (value === 'build' || value === 'up' || value === 'down') return value;
   if (value === 'publish-images') return value;
-  throw ErrorFactory.createCliError('Usage: zin cp <build|up|down|publish-images> [options]');
+  if (value === 'publish-proxy' || value === 'publish-runtime') return 'publish-proxy';
+  if (value === 'publish-gateway') return value;
+  throw ErrorFactory.createCliError(
+    'Usage: zin cp <build|up|down|publish-images|publish-proxy|publish-gateway> [options]'
+  );
 };
 
 export const ContainerProxiesCommand = Object.freeze({
@@ -163,7 +173,10 @@ export const ContainerProxiesCommand = Object.freeze({
       aliases: ['container-proxies'],
       description: 'Build, start, or stop container-based proxy stack',
       addOptions: (command: Command): void => {
-        command.argument('<action>', 'Action to run (build, up, down)');
+        command.argument(
+          '<action>',
+          'Action to run (build, up, down, publish-images, publish-proxy, publish-gateway)'
+        );
         command.option('-d, --detach', 'Run containers in background (up only)');
         command.option('--no-cache', 'Disable Docker build cache (build only)');
         command.option('--pull', 'Always attempt to pull a newer base image (build only)');
@@ -195,6 +208,16 @@ export const ContainerProxiesCommand = Object.freeze({
         const action = normalizeAction(options.args?.[0]);
         if (action === 'publish-images') {
           await runPublishImages(options);
+          return;
+        }
+
+        if (action === 'publish-proxy') {
+          await runPublishImages({ ...options, only: 'runtime' });
+          return;
+        }
+
+        if (action === 'publish-gateway') {
+          await runPublishImages({ ...options, only: 'gateway' });
           return;
         }
 

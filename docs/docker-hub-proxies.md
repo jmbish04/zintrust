@@ -110,6 +110,26 @@ If you don’t set `*_PROXY_KEY_ID` and `*_PROXY_SECRET`, they fall back to:
 
 So for local/dev, the minimum is: set a non-empty `APP_KEY`.
 
+## Publishing images (maintainers)
+
+If you have access to the Docker Hub repos under the `zintrust` org, you can publish via the CLI (buildx multi-arch):
+
+```bash
+# runtime image only
+zin cp publish-proxy --tag 0.1.46
+
+# gateway image only
+zin cp publish-gateway --tag 0.1.46
+
+# both images
+zin cp publish-images --tag 0.1.46
+```
+
+Common options:
+
+- `--platforms linux/amd64,linux/arm64`
+- `--no-also-latest`
+
 ## Troubleshooting
 
 - **pull access denied for `zintrust/zintrust-proxy`**: the image isn’t published yet, the repo is private, or you’re not logged in.
