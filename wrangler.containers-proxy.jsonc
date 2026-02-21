@@ -24,7 +24,7 @@
  */
 
 {
-  "name": "zintrust-containers-proxy",
+  "name": "zintrust-proxys",
   "main": "./packages/cloudflare-containers-proxy/src/index.ts",
 
   "compatibility_date": "2025-04-21",
@@ -108,7 +108,7 @@
   // --------------------------------------------------------------------------
   "env": {
     "staging": {
-      "name": "zintrust-containers-proxy-staging",
+      "name": "zintrust-proxy-staging",
       "minify": false,
       "vars": {
         "ENVIRONMENT": "staging",
@@ -186,7 +186,7 @@
       // "routes": [{ "pattern": "proxy-staging.zintrust.com", "custom_domain": true }]
     },
     "production": {
-      "name": "zintrust-containers-proxy-production",
+      "name": "zintrust-proxy",
       "minify": true,
       "vars": {
         "ENVIRONMENT": "production",

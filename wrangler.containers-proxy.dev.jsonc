@@ -18,7 +18,7 @@
  */
 
 {
-  "name": "zintrust-containers-proxy",
+  "name": "zintrust-proxys",
   "main": "./packages/cloudflare-containers-proxy/src/index.ts",
 
   "compatibility_date": "2025-04-21",
@@ -100,7 +100,7 @@
   // --------------------------------------------------------------------------
   "env": {
     "staging": {
-      "name": "zintrust-containers-proxy-staging",
+      "name": "zintrust-proxy-dev",
       "minify": false,
       "vars": {
         "ENVIRONMENT": "staging",
@@ -111,74 +111,6 @@
       // Wrangler env selection does not reliably inherit container/DO bindings
       // from the top-level config for JSONC configs. Keep these duplicated so
       // `wrangler dev --env staging` works.
-      "containers": [
-        {
-          "class_name": "ZintrustMySqlProxyContainer",
-          "image": "./docker/containers-proxy-dev/Dockerfile",
-          "max_instances": 10,
-        },
-        {
-          "class_name": "ZintrustPostgresProxyContainer",
-          "image": "./docker/containers-proxy-dev/Dockerfile",
-          "max_instances": 10,
-        },
-        {
-          "class_name": "ZintrustRedisProxyContainer",
-          "image": "./docker/containers-proxy-dev/Dockerfile",
-          "max_instances": 10,
-        },
-        {
-          "class_name": "ZintrustMongoDbProxyContainer",
-          "image": "./docker/containers-proxy-dev/Dockerfile",
-          "max_instances": 10,
-        },
-        {
-          "class_name": "ZintrustSqlServerProxyContainer",
-          "image": "./docker/containers-proxy-dev/Dockerfile",
-          "max_instances": 10,
-        },
-        {
-          "class_name": "ZintrustSmtpProxyContainer",
-          "image": "./docker/containers-proxy-dev/Dockerfile",
-          "max_instances": 10,
-        },
-      ],
-
-      "durable_objects": {
-        "bindings": [
-          { "name": "ZT_PROXY_MYSQL", "class_name": "ZintrustMySqlProxyContainer" },
-          { "name": "ZT_PROXY_POSTGRES", "class_name": "ZintrustPostgresProxyContainer" },
-          { "name": "ZT_PROXY_REDIS", "class_name": "ZintrustRedisProxyContainer" },
-          { "name": "ZT_PROXY_MONGODB", "class_name": "ZintrustMongoDbProxyContainer" },
-          { "name": "ZT_PROXY_SQLSERVER", "class_name": "ZintrustSqlServerProxyContainer" },
-          { "name": "ZT_PROXY_SMTP", "class_name": "ZintrustSmtpProxyContainer" },
-        ],
-      },
-
-      "migrations": [
-        {
-          "tag": "containers-proxy-v1",
-          "new_sqlite_classes": [
-            "ZintrustMySqlProxyContainer",
-            "ZintrustPostgresProxyContainer",
-            "ZintrustRedisProxyContainer",
-            "ZintrustMongoDbProxyContainer",
-            "ZintrustSqlServerProxyContainer",
-            "ZintrustSmtpProxyContainer",
-          ],
-        },
-      ],
-    },
-
-    "production": {
-      "name": "zintrust-containers-proxy-production",
-      "minify": true,
-      "vars": {
-        "ENVIRONMENT": "production",
-        "APP_NAME": "ZinTrust",
-        "CSRF_SKIP_PATHS": "/api/*,/queue-monitor/*",
-      },
-
       "containers": [
         {
           "class_name": "ZintrustMySqlProxyContainer",

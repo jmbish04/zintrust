@@ -74,6 +74,23 @@ zin deploy:ccp -e staging
 - `zin init:ecosystem` - Scaffold `docker-compose.ecosystem.yml` and `docker-compose.schedules.yml`
 - Proxy init aliases: `zin init:cp`, `zin init:container-proxies`, `zin init:py`
 
+## Container Workers Commands
+
+- `zin cw build`: Build the container workers image (`docker-compose.workers.yml`)
+- `zin cw up`: Start container workers
+
+Publish (Docker Hub, requires repo/org access):
+
+- `zin cw publish-images`: Publish both images (workers API + schedules) via Docker buildx
+- `zin cw publish-workers`: Publish only the workers image (`zintrust/zintrust-workers`)
+- `zin cw publish-schedules`: Publish only the schedules image (`zintrust/zintrust-schedules`)
+
+Common publish options:
+
+- `--tag <tag>`: Tag to publish (default: `latest`)
+- `--platforms <list>`: Comma list for buildx (default: `linux/amd64,linux/arm64`)
+- `--no-also-latest`: If `--tag` is not `latest`, do not also push `:latest`
+
 ## Container Proxies Commands
 
 - `zin cp build`: Build proxy stack images

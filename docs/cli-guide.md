@@ -123,6 +123,21 @@ zin deploy worker
 zin deploy production
 ```
 
+### Container Workers + Schedules Images (Docker Hub)
+
+Publishing workers/schedules images (maintainers / requires Docker Hub access):
+
+```bash
+# both images
+zin cw publish-images --tag 0.1.46
+
+# workers API only
+zin cw publish-workers --tag 0.1.46
+
+# schedules only
+zin cw publish-schedules --tag 0.1.46
+```
+
 ### Create New Project
 
 ```bash

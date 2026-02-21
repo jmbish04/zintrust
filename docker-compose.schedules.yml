@@ -2,6 +2,7 @@ name: zintrust-schedules
 
 services:
   schedules:
+    image: ${SCHEDULES_IMAGE:-zintrust/zintrust-schedules:latest}
     build:
       context: .
       dockerfile: Dockerfile

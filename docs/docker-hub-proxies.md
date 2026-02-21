@@ -9,6 +9,11 @@ This uses the Docker Compose stack defined in `docker-compose.proxy.yml`.
 - Proxy runtime image: `zintrust/zintrust-proxy`
 - Gateway image: `zintrust/zintrust-proxy-gateway`
 
+Related (non-proxy) images published by maintainers:
+
+- Container workers API image: `zintrust/zintrust-workers`
+- Schedules daemon image: `zintrust/zintrust-schedules`
+
 `docker-compose.proxy.yml` defaults to the `:latest` tags for both. You only need to set `PROXY_IMAGE` / `PROXY_GATEWAY_IMAGE` if you want to pin a different tag.
 
 ## Quick start

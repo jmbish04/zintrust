@@ -30,6 +30,21 @@ zin deploy cw
 zin deploy:cw
 ```
 
+Publish workers/schedules images (maintainers / Docker Hub access required):
+
+```bash
+zin cw publish-images --tag 0.1.46
+zin cw publish-workers --tag 0.1.46
+zin cw publish-schedules --tag 0.1.46
+```
+
+Use the prebuilt images in Compose (skip local builds):
+
+```bash
+WORKERS_IMAGE=zintrust/zintrust-workers:0.1.46 docker compose -f docker-compose.workers.yml up -d
+SCHEDULES_IMAGE=zintrust/zintrust-schedules:0.1.46 docker compose -f docker-compose.schedules.yml up -d
+```
+
 Compatibility aliases still work:
 
 ```bash
