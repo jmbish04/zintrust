@@ -140,4 +140,22 @@ describe('SqlServerProxyAdapter', () => {
     expect(out.rows).toEqual([{ a: 1 }]);
     expect(out.rowCount).toBe(1);
   });
+
+  it('ensureMigrationsTable succeeds and throws a CLI error when unreachable', async () => {
+    vi.stubEnv('SQLSERVER_PROXY_MODE', 'sql');
+
+    requestSignedProxyMock.mockImplementation(async (_cfg: unknown, path: string, payload: any) => {
+      if (path !== '/zin/sqlserver/query') throw new Error('unexpected path');
+      if (String(payload.sql).includes('IF OBJECT_ID')) return { ok: true, meta: { changes: 0 } };
+      return { rows: [{ x: 1 }], rowCount: 1 };
+    });
+
+    const adapter = createSqlServerProxyAdapter();
+    await adapter.connect();
+
+    await expect(adapter.ensureMigrationsTable()).resolves.toBeUndefined();
+
+    requestSignedProxyMock.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+    await expect(adapter.ensureMigrationsTable()).rejects.toBeDefined();
+  });
 });
