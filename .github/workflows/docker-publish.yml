@@ -72,8 +72,8 @@ jobs:
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
           images: |
-            ${{ env.REGISTRY }}/${{ env.DOCKERHUB_GATEWAY_IMAGE }}
             ${{ env.DOCKERHUB_GATEWAY_IMAGE }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-proxy-gateway
           tags: |
             type=semver,pattern={{version}}
             type=sha,format=short

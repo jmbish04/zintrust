@@ -160,28 +160,6 @@ function verifyCorePublishedOrThrow(coreVersion) {
   if (!published) throw new Error(`@zintrust/core@${coreVersion} is not published on npm`);
 }
 
-async function writeFailureReport({ failures, successes, reportPath }) {
-  await fs.mkdir(path.dirname(reportPath), { recursive: true });
-  await fs.writeFile(
-    reportPath,
-    JSON.stringify({ failures, successes, total: successes.length + failures.length }, null, 2)
-  );
-
-  const lines = [
-    `\n## Package publish failures\n`,
-    `- Total attempted: ${successes.length + failures.length}\n`,
-    `- Succeeded: ${successes.length}\n`,
-    `- Failed: ${failures.length}\n\n`,
-    `| Package | Version | Dir | Error |\n`,
-    `|---|---:|---|---|\n`,
-    ...failures.map(
-      (f) => `| ${f.name} | ${f.version} | ${f.dirName} | ${flattenForTableCell(f.message)} |\n`
-    ),
-    `\nReport file: ${reportPath}\n`,
-  ];
-  await appendGithubStepSummary(lines.join(''));
-}
-
 async function writePublishReport({ failures, successes, checkIssues, reportPath }) {
   await fs.mkdir(path.dirname(reportPath), { recursive: true });
   await fs.writeFile(
