@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
-// Mock TokenRevocation before importing the middleware module
-vi.mock('@security/TokenRevocation', () => ({
-  TokenRevocation: {
-    isRevoked: vi.fn(),
+// Mock JwtSessions before importing the middleware module
+vi.mock('@security/JwtSessions', () => ({
+  JwtSessions: {
+    isActive: vi.fn(),
   },
 }));
 
@@ -15,7 +15,7 @@ import {
   trailingSlashMiddleware,
 } from '../../../app/Middleware/index';
 
-import { TokenRevocation } from '@security/TokenRevocation';
+import { JwtSessions } from '@security/JwtSessions';
 
 const makeReqRes = (overrides: any = {}) => {
   const req: any = {
@@ -94,8 +94,8 @@ describe('Middleware index quick patch coverage', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('jwtMiddleware returns 401 when token is revoked', async () => {
-    (TokenRevocation as any).isRevoked.mockReturnValue(true);
+  it('jwtMiddleware returns 401 when token is not active', async () => {
+    (JwtSessions as any).isActive.mockResolvedValue(false);
     const { req, res, next } = makeReqRes({ headers: { authorization: 'Bearer tok' } });
     const jw = jwtMiddleware({
       setHmacSecret: () => {},
@@ -113,7 +113,7 @@ describe('Middleware index quick patch coverage', () => {
   });
 
   it('jwtMiddleware verifies token and sets req.user on success', async () => {
-    (TokenRevocation as any).isRevoked.mockReturnValue(false);
+    (JwtSessions as any).isActive.mockResolvedValue(true);
     const jwManager = {
       setHmacSecret: vi.fn(),
       setRsaKeys: vi.fn(),

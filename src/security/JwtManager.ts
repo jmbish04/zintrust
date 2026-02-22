@@ -7,6 +7,8 @@
 import { securityConfig } from '@/config';
 import { ErrorFactory } from '@exceptions/ZintrustError';
 import { createHmac, createSign, createVerify, randomBytes } from '@node-singletons/crypto';
+import type { AuthorizationHeader } from '@security/JwtSessions';
+import { JwtSessions } from '@security/JwtSessions';
 
 export type JwtAlgorithm = 'HS256' | 'HS512' | 'RS256';
 
@@ -48,7 +50,9 @@ interface JwtState {
 
 export interface JwtManagerType {
   create(): IJwtManager;
-  signAccessToken: (payload: JwtPayload, expiresIn?: number) => string;
+  signAccessToken: (payload: JwtPayload, expiresIn?: number) => Promise<string>;
+  logout: (authHeader: AuthorizationHeader) => Promise<void>;
+  logoutAll: (sub: string) => Promise<void>;
 }
 
 const createJwt = (): IJwtManager => {
@@ -64,30 +68,42 @@ const createJwt = (): IJwtManager => {
   return jwt;
 };
 
-const signAccessToken = (payload: JwtPayload, expiresIn?: number): string => {
+const logout = async (authHeader: AuthorizationHeader): Promise<void> => {
+  await JwtSessions.logout(authHeader);
+};
+
+const logoutAll = async (sub: string): Promise<void> => {
+  await JwtSessions.logoutAll(sub);
+};
+
+const signAccessToken = async (payload: JwtPayload, expiresIn?: number): Promise<string> => {
   const algorithm = securityConfig.jwt.algorithm;
 
   const jwt = createJwt();
 
+  let token;
   // JwtManager currently supports HMAC secrets directly for HS algorithms.
   // For other algorithms, verify will still reject mismatched tokens.
   if (algorithm !== 'HS256' && algorithm !== 'HS512') {
-    return jwt.sign(payload, {
+    token = jwt.sign(payload, {
       algorithm,
       issuer: securityConfig.jwt.issuer,
       audience: securityConfig.jwt.audience,
       jwtId: jwt.generateJwtId(),
     });
+  } else {
+    token = jwt.sign(payload, {
+      algorithm,
+      expiresIn: expiresIn ?? securityConfig.jwt.expiresIn,
+      issuer: securityConfig.jwt.issuer,
+      audience: securityConfig.jwt.audience,
+      subject: typeof payload.sub === 'string' ? payload.sub : undefined,
+      jwtId: jwt.generateJwtId(),
+    });
   }
 
-  return jwt.sign(payload, {
-    algorithm,
-    expiresIn: expiresIn ?? securityConfig.jwt.expiresIn,
-    issuer: securityConfig.jwt.issuer,
-    audience: securityConfig.jwt.audience,
-    subject: typeof payload.sub === 'string' ? payload.sub : undefined,
-    jwtId: jwt.generateJwtId(),
-  });
+  await JwtSessions.register(token);
+  return token;
 };
 
 /**
@@ -132,6 +148,8 @@ const create = (): IJwtManager => {
 export const JwtManager: JwtManagerType = Object.freeze({
   create,
   signAccessToken,
+  logout,
+  logoutAll,
 });
 
 /**

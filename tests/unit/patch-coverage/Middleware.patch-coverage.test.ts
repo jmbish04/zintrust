@@ -1,11 +1,11 @@
 import { JwtManager } from '@security/JwtManager';
-import { TokenRevocation } from '@security/TokenRevocation';
+import { JwtSessions } from '@security/JwtSessions';
 import { Validator } from '@validation/Validator';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@config/logger', () => ({ Logger: { info: vi.fn(), error: vi.fn() } }));
-vi.mock('@security/TokenRevocation', () => ({
-  TokenRevocation: { isRevoked: vi.fn(), revoke: vi.fn() },
+vi.mock('@security/JwtSessions', () => ({
+  JwtSessions: { isActive: vi.fn(), register: vi.fn(), logout: vi.fn(), logoutAll: vi.fn() },
 }));
 vi.mock('@security/XssProtection', () => ({
   XssProtection: { escape: (s: string) => `escaped:${s}` },
@@ -122,10 +122,10 @@ describe('patch coverage: Middleware', () => {
     expect(res._calls.payload).toEqual({ error: 'Invalid authorization header format' });
   });
 
-  it('jwtMiddleware: revoked token', async () => {
+  it('jwtMiddleware: missing session (token not registered)', async () => {
     const { req, res, next } = makeReqRes();
     req.getHeader = () => 'Bearer tok';
-    vi.mocked(TokenRevocation.isRevoked as any).mockReturnValueOnce(true);
+    vi.mocked(JwtSessions.isActive as any).mockReturnValueOnce(false);
     const middleware = jwtMiddleware(JwtManager.create());
     await middleware(req, res, next);
     expect(res._calls.status).toBe(401);
@@ -137,6 +137,7 @@ describe('patch coverage: Middleware', () => {
     req.getHeader = () => 'Bearer tok';
     const jwt = JwtManager.create();
     vi.mocked(jwt.verify as any).mockReturnValueOnce({ sub: 'u2' });
+    vi.mocked(JwtSessions.isActive as any).mockReturnValueOnce(true);
     const middleware = jwtMiddleware(jwt as any);
     await middleware(req, res, next);
     expect(req.user).toEqual({ sub: 'u2' });

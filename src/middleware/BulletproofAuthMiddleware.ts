@@ -8,9 +8,9 @@ import type { IResponse } from '@http/Response';
 import type { Middleware } from '@middleware/MiddlewareStack';
 import type { JwtAlgorithm, JwtPayload } from '@security/JwtManager';
 import { JwtManager } from '@security/JwtManager';
+import { JwtSessions } from '@security/JwtSessions';
 import { NonceReplay, type NonceReplayVerifier } from '@security/NonceReplay';
 import { SignedRequest } from '@security/SignedRequest';
-import { TokenRevocation } from '@security/TokenRevocation';
 
 export type BulletproofAuthContext = {
   strategy: 'bulletproof';
@@ -584,10 +584,6 @@ const authenticate = async (params: {
   const tokenResult = getTokenOrFail(params.req);
   if (!tokenResult.ok) return tokenResult;
 
-  if (await TokenRevocation.isRevoked(tokenResult.token)) {
-    return { ok: false, message: 'Invalid or expired token' };
-  }
-
   const parsed = parseBulletproofHeaders({
     req: params.req,
     deviceIdHeader: params.resolved.deviceIdHeader,
@@ -613,6 +609,11 @@ const authenticate = async (params: {
     algorithm: params.resolved.algorithm,
   });
   if (!jwtResult.ok) return { ok: false, message: 'Invalid or expired token' };
+
+  // Session allowlist: token must exist in the sessions store to be accepted.
+  if (!(await JwtSessions.isActive(tokenResult.token))) {
+    return { ok: false, message: 'Invalid or expired token' };
+  }
 
   const binding = await enforceJwtBindings({
     req: params.req,

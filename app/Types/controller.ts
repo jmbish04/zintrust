@@ -24,6 +24,7 @@ export type AuthControllerApi = {
   login(req: IRequest, res: IResponse): Promise<void>;
   register(req: IRequest, res: IResponse): Promise<void>;
   logout(req: IRequest, res: IResponse): Promise<void>;
+  logoutAll(req: IRequest, res: IResponse): Promise<void>;
   refresh(req: IRequest, res: IResponse): Promise<void>;
 };
 

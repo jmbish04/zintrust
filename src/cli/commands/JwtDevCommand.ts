@@ -3,12 +3,13 @@
  * Mint a local development JWT for quick manual API testing.
  */
 
+import { isUndefinedOrNull } from '@/helper';
 import { BaseCommand, type CommandOptions, type IBaseCommand } from '@cli/BaseCommand';
 import { appConfig } from '@config/app';
 import { securityConfig } from '@config/security';
 import { ErrorFactory } from '@exceptions/ZintrustError';
 import * as crypto from '@node-singletons/crypto';
-import { JwtManager, type IJwtManager, type JwtPayload } from '@security/JwtManager';
+import { JwtManager, type JwtPayload } from '@security/JwtManager';
 import type { Command } from 'commander';
 
 type JwtDevCommandOptions = CommandOptions & {
@@ -39,29 +40,33 @@ const buildPayload = (options: JwtDevCommandOptions): JwtPayload => {
   const payload: JwtPayload = {};
 
   const sub = optionalTrimmed(options.sub);
-  if (sub) payload.sub = sub;
+  if (!isUndefinedOrNull(sub)) payload.sub = sub;
 
   const email = optionalTrimmed(options.email);
-  if (email) (payload as unknown as Record<string, unknown>)['email'] = email;
+  if (!isUndefinedOrNull(email)) (payload as unknown as Record<string, unknown>)['email'] = email;
 
   const role = optionalTrimmed(options.role);
-  if (role) (payload as unknown as Record<string, unknown>)['role'] = role;
+  if (!isUndefinedOrNull(role)) (payload as unknown as Record<string, unknown>)['role'] = role;
 
   const deviceId = optionalTrimmed(options.deviceId);
-  if (deviceId) (payload as unknown as Record<string, unknown>)['deviceId'] = deviceId;
+  if (!isUndefinedOrNull(deviceId))
+    (payload as unknown as Record<string, unknown>)['deviceId'] = deviceId;
 
   const tenantId = optionalTrimmed(options.tenantId);
-  if (tenantId) (payload as unknown as Record<string, unknown>)['tenantId'] = tenantId;
+  if (!isUndefinedOrNull(tenantId))
+    (payload as unknown as Record<string, unknown>)['tenantId'] = tenantId;
 
   const tz = optionalTrimmed(options.tz);
-  if (tz) (payload as unknown as Record<string, unknown>)['tz'] = tz;
+  if (!isUndefinedOrNull(tz)) (payload as unknown as Record<string, unknown>)['tz'] = tz;
 
   const uaHash = optionalTrimmed(options.uaHash);
-  if (uaHash) {
-    (payload as unknown as Record<string, unknown>)['uaHash'] = uaHash;
-  } else {
+  if (isUndefinedOrNull(uaHash)) {
     const ua = optionalTrimmed(options.ua);
-    if (ua) (payload as unknown as Record<string, unknown>)['uaHash'] = sha256Hex(ua);
+    if (ua !== undefined) {
+      (payload as unknown as Record<string, unknown>)['uaHash'] = sha256Hex(ua);
+    }
+  } else {
+    (payload as unknown as Record<string, unknown>)['uaHash'] = uaHash;
   }
 
   return payload;
@@ -120,30 +125,6 @@ const assertNotProduction = (allowProduction: unknown): void => {
   );
 };
 
-const createJwt = (payload: JwtPayload, expiresInSeconds: number): string => {
-  const algorithm = securityConfig.jwt.algorithm;
-  const secret = securityConfig.jwt.secret;
-
-  const jwt: IJwtManager = JwtManager.create();
-
-  if (algorithm === 'HS256' || algorithm === 'HS512') {
-    jwt.setHmacSecret(secret);
-  } else {
-    throw ErrorFactory.createCliError(
-      `JWT algorithm '${algorithm}' is not supported by zin jwt:dev (HS256/HS512 only).`
-    );
-  }
-
-  return jwt.sign(payload, {
-    algorithm,
-    expiresIn: expiresInSeconds,
-    issuer: securityConfig.jwt.issuer,
-    audience: securityConfig.jwt.audience,
-    subject: typeof payload.sub === 'string' ? payload.sub : undefined,
-    jwtId: jwt.generateJwtId(),
-  });
-};
-
 export const JwtDevCommand: IBaseCommand = Object.freeze(
   BaseCommand.create({
     name: 'jwt:dev',
@@ -163,14 +144,14 @@ export const JwtDevCommand: IBaseCommand = Object.freeze(
         .option('--json', 'Output machine-readable JSON')
         .option('--allow-production', 'Allow running in production (dangerous)');
     },
-    execute: (options: JwtDevCommandOptions): void => {
+    execute: async (options: JwtDevCommandOptions): Promise<void> => {
       assertNotProduction(options.allowProduction);
 
       const expiresInSeconds = parseExpiresToSeconds(options.expires);
 
       const payload: JwtPayload = buildPayload(options);
 
-      const token = createJwt(payload, expiresInSeconds);
+      const token = await JwtManager.signAccessToken(payload, expiresInSeconds);
 
       /* eslint-disable no-console */
       if (options.json === true) {

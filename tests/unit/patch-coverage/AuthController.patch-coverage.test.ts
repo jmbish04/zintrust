@@ -5,8 +5,12 @@ const passD = 'p';
 vi.mock('@config/logger', () => ({ Logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 vi.mock('@http/ValidationHelper', () => ({ getValidatedBody: vi.fn() }));
 vi.mock('@auth/Auth', () => ({ Auth: { hash: vi.fn(), compare: vi.fn() } }));
-vi.mock('@security/JwtManager', () => ({ JwtManager: { signAccessToken: vi.fn() } }));
-vi.mock('@security/TokenRevocation', () => ({ TokenRevocation: { revoke: vi.fn() } }));
+vi.mock('@security/JwtManager', () => ({
+  JwtManager: { signAccessToken: vi.fn(), logout: vi.fn(), logoutAll: vi.fn() },
+}));
+vi.mock('@security/JwtSessions', () => ({
+  JwtSessions: { register: vi.fn(async () => undefined), logout: vi.fn(async () => null) },
+}));
 vi.mock('@app/Models/User', () => ({ User: { where: vi.fn(), query: vi.fn() } }));
 
 const makeReqRes = () => {
@@ -115,14 +119,14 @@ describe('patch coverage: AuthController (new file)', () => {
   });
 
   it('logout: revokes token and responds', async () => {
-    const { TokenRevocation } = await import('@security/TokenRevocation');
+    const { JwtManager } = await import('@security/JwtManager');
     const { req, res } = makeReqRes();
     req.getHeader = () => 'Bearer tok';
 
     const AuthController = (await import('@app/Controllers/AuthController')).AuthController;
     await AuthController.create().logout(req, res);
 
-    expect(vi.mocked(TokenRevocation.revoke as any).mock.calls.length).toBeGreaterThanOrEqual(1);
+    expect(vi.mocked(JwtManager.logout as any).mock.calls.length).toBeGreaterThanOrEqual(1);
     expect(res._calls.payload).toEqual({ message: 'Logged out' });
   });
 

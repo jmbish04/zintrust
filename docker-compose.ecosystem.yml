@@ -29,6 +29,15 @@ services:
   # Web Application (API)
   web:
     <<: *app-runtime
+    restart: unless-stopped
+    mem_limit: ${APP_MEM_LIMIT:-1g}
+    cpus: ${APP_CPUS:-2.0}
+    pids_limit: ${APP_PIDS_LIMIT:-1024}
+    logging:
+      driver: json-file
+      options:
+        max-size: ${APP_LOG_MAX_SIZE:-10m}
+        max-file: ${APP_LOG_MAX_FILE:-3}
     ports:
       - '${PORT:-3000}:3000'
     environment:
@@ -48,12 +57,31 @@ services:
       - .:/app
       - /app/node_modules
       - /app/dist
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "require(\"node:http\").get(\"http://127.0.0.1:\"+(process.env.PORT||3000)+\"/health\", (r)=>{ if(r.statusCode!==200) process.exit(1); r.resume(); }).on(\"error\",()=>process.exit(1));"',
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     networks:
       - zintrust-network
 
   # Workers (Consumers)
   workers:
     <<: *app-runtime
+    restart: unless-stopped
+    mem_limit: ${WORKERS_MEM_LIMIT:-1g}
+    cpus: ${WORKERS_CPUS:-2.0}
+    pids_limit: ${WORKERS_PIDS_LIMIT:-1024}
+    logging:
+      driver: json-file
+      options:
+        max-size: ${APP_LOG_MAX_SIZE:-10m}
+        max-file: ${APP_LOG_MAX_FILE:-3}
     environment:
       <<: *common-env
       RUNTIME_MODE: containers
@@ -76,6 +104,15 @@ services:
   # Dedicated schedules service (auto-start schedules)
   schedules:
     <<: *app-runtime
+    restart: unless-stopped
+    mem_limit: ${SCHEDULES_MEM_LIMIT:-512m}
+    cpus: ${SCHEDULES_CPUS:-1.0}
+    pids_limit: ${SCHEDULES_PIDS_LIMIT:-512}
+    logging:
+      driver: json-file
+      options:
+        max-size: ${APP_LOG_MAX_SIZE:-10m}
+        max-file: ${APP_LOG_MAX_FILE:-3}
     environment:
       <<: *common-env
       # Dedicated schedules service enabled by default (override in .env)
@@ -136,7 +173,15 @@ services:
     build:
       context: ./docker/proxy-gateway
       dockerfile: Dockerfile
-    restart: on-failure:3
+    restart: unless-stopped
+    mem_limit: ${PROXY_GATEWAY_MEM_LIMIT:-512m}
+    cpus: ${PROXY_GATEWAY_CPUS:-1.0}
+    pids_limit: ${PROXY_GATEWAY_PIDS_LIMIT:-512}
+    logging:
+      driver: json-file
+      options:
+        max-size: ${PROXY_LOG_MAX_SIZE:-10m}
+        max-file: ${PROXY_LOG_MAX_FILE:-3}
     depends_on:
       - proxy-mysql
       - proxy-pg
@@ -149,6 +194,13 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       CSRF_SKIP_PATHS: ${CSRF_SKIP_PATHS:-/api/*,/queue-monitor/*}
+    healthcheck:
+      disable: ${PROXY_GATEWAY_HEALTHCHECK_DISABLE:-false}
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:8080/health']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - zintrust-network
 
@@ -161,6 +213,15 @@ services:
     command: ['node', 'dist/bin/zin.js', 'proxy:mysql', '--host', '0.0.0.0', '--port', '8789']
     expose:
       - '8789'
+    restart: unless-stopped
+    mem_limit: ${PROXY_MEM_LIMIT:-512m}
+    cpus: ${PROXY_CPUS:-1.0}
+    pids_limit: ${PROXY_PIDS_LIMIT:-512}
+    logging:
+      driver: json-file
+      options:
+        max-size: ${PROXY_LOG_MAX_SIZE:-10m}
+        max-file: ${PROXY_LOG_MAX_FILE:-3}
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       APP_NAME: ${APP_NAME:-ZinTrust}
@@ -186,6 +247,15 @@ services:
     command: ['node', 'dist/bin/zin.js', 'proxy:postgres', '--host', '0.0.0.0', '--port', '8790']
     expose:
       - '8790'
+    restart: unless-stopped
+    mem_limit: ${PROXY_MEM_LIMIT:-512m}
+    cpus: ${PROXY_CPUS:-1.0}
+    pids_limit: ${PROXY_PIDS_LIMIT:-512}
+    logging:
+      driver: json-file
+      options:
+        max-size: ${PROXY_LOG_MAX_SIZE:-10m}
+        max-file: ${PROXY_LOG_MAX_FILE:-3}
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       APP_NAME: ${APP_NAME:-ZinTrust}
@@ -211,6 +281,15 @@ services:
     command: ['node', 'dist/bin/zin.js', 'proxy:redis', '--host', '0.0.0.0', '--port', '8791']
     expose:
       - '8791'
+    restart: unless-stopped
+    mem_limit: ${PROXY_MEM_LIMIT:-512m}
+    cpus: ${PROXY_CPUS:-1.0}
+    pids_limit: ${PROXY_PIDS_LIMIT:-512}
+    logging:
+      driver: json-file
+      options:
+        max-size: ${PROXY_LOG_MAX_SIZE:-10m}
+        max-file: ${PROXY_LOG_MAX_FILE:-3}
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       APP_NAME: ${APP_NAME:-ZinTrust}
@@ -235,6 +314,15 @@ services:
     command: ['node', 'dist/bin/zin.js', 'proxy:mongodb', '--host', '0.0.0.0', '--port', '8792']
     expose:
       - '8792'
+    restart: unless-stopped
+    mem_limit: ${PROXY_MEM_LIMIT:-512m}
+    cpus: ${PROXY_CPUS:-1.0}
+    pids_limit: ${PROXY_PIDS_LIMIT:-512}
+    logging:
+      driver: json-file
+      options:
+        max-size: ${PROXY_LOG_MAX_SIZE:-10m}
+        max-file: ${PROXY_LOG_MAX_FILE:-3}
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       APP_NAME: ${APP_NAME:-ZinTrust}
@@ -257,6 +345,15 @@ services:
     command: ['node', 'dist/bin/zin.js', 'proxy:sqlserver', '--host', '0.0.0.0', '--port', '8793']
     expose:
       - '8793'
+    restart: unless-stopped
+    mem_limit: ${PROXY_MEM_LIMIT:-512m}
+    cpus: ${PROXY_CPUS:-1.0}
+    pids_limit: ${PROXY_PIDS_LIMIT:-512}
+    logging:
+      driver: json-file
+      options:
+        max-size: ${PROXY_LOG_MAX_SIZE:-10m}
+        max-file: ${PROXY_LOG_MAX_FILE:-3}
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       APP_NAME: ${APP_NAME:-ZinTrust}
@@ -282,6 +379,15 @@ services:
     command: ['node', 'dist/bin/zin.js', 'proxy:smtp', '--host', '0.0.0.0', '--port', '8794']
     expose:
       - '8794'
+    restart: unless-stopped
+    mem_limit: ${PROXY_MEM_LIMIT:-512m}
+    cpus: ${PROXY_CPUS:-1.0}
+    pids_limit: ${PROXY_PIDS_LIMIT:-512}
+    logging:
+      driver: json-file
+      options:
+        max-size: ${PROXY_LOG_MAX_SIZE:-10m}
+        max-file: ${PROXY_LOG_MAX_FILE:-3}
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       APP_NAME: ${APP_NAME:-ZinTrust}

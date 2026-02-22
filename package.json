@@ -87,6 +87,7 @@
     "update": "node dev/update-deps.mjs",
     "docker:build": "docker build -t zintrust:latest .",
     "docker:build:prod": "docker build -t zintrust:latest --target runtime .",
+    "docker:prune": "docker system prune -a --volumes --force",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:stop": "docker-compose stop",

@@ -18,7 +18,9 @@ describe('AuthController (branches)', () => {
     vi.doMock('@auth/Auth', () => ({
       Auth: { compare: async () => false, hash: async () => 'h' },
     }));
-    vi.doMock('@security/JwtManager', () => ({ JwtManager: { signAccessToken: () => 'tok' } }));
+    vi.doMock('@security/JwtManager', () => ({
+      JwtManager: { signAccessToken: () => 'tok', logout: vi.fn(), logoutAll: vi.fn() },
+    }));
     vi.doMock('@security/TokenRevocation', () => ({ TokenRevocation: { revoke: vi.fn() } }));
 
     const mod = await import('@app/Controllers/AuthController');
@@ -49,7 +51,9 @@ describe('AuthController (branches)', () => {
       Logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
     }));
     vi.doMock('@security/TokenRevocation', () => ({ TokenRevocation: { revoke: vi.fn() } }));
-    vi.doMock('@security/JwtManager', () => ({ JwtManager: { signAccessToken: () => 'new' } }));
+    vi.doMock('@security/JwtManager', () => ({
+      JwtManager: { signAccessToken: () => 'new', logout: vi.fn(), logoutAll: vi.fn() },
+    }));
 
     const mod = await import('@app/Controllers/AuthController');
     const ctl = mod.AuthController.create();

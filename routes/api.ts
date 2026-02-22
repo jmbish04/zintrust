@@ -87,6 +87,10 @@ function registerApiV1Routes(
     Router.post<MiddlewareKey>(r, '/auth/logout', authController.logout, {
       middleware: ['auth', 'jwt'],
     });
+
+    Router.post<MiddlewareKey>(r, '/auth/logout-all', authController.logoutAll, {
+      middleware: ['auth', 'jwt'],
+    });
     Router.post<MiddlewareKey>(r, '/auth/refresh', authController.refresh, {
       middleware: ['auth', 'jwt'],
     });

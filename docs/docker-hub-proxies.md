@@ -12,7 +12,7 @@ The proxy stack also has a companion gateway image.
 
 | Component  | Detail                        |
 | ---------- | ----------------------------- |
-| Base       | `node:20-bookworm-slim`       |
+| Base       | `node:20-alpine`              |
 | Entrypoint | `zin` CLI (`dist/bin/zin.js`) |
 | Arch       | `linux/amd64`, `linux/arm64`  |
 
@@ -69,11 +69,25 @@ The gateway will be available at **http://localhost:8800**.
 
 ### Shared (all proxies)
 
-| Variable   | Default       | Description             |
-| ---------- | ------------- | ----------------------- |
-| `NODE_ENV` | `development` | Runtime environment     |
-| `APP_NAME` | `ZinTrust`    | Application name        |
-| `APP_KEY`  | _(required)_  | Secret used for signing |
+| Variable   | Default      | Description                           |
+| ---------- | ------------ | ------------------------------------- |
+| `NODE_ENV` | `production` | Runtime environment (Compose default) |
+| `APP_NAME` | `ZinTrust`   | Application name                      |
+| `APP_KEY`  | _(required)_ | Secret used for signing               |
+
+### Operational (Docker Compose only)
+
+These are Docker-only tuning knobs used by `docker-compose.proxy.yml`:
+
+| Variable             | Default  | Description                                 |
+| -------------------- | -------- | ------------------------------------------- |
+| `PROXY_PULL_POLICY`  | `always` | Docker Compose pull policy for proxy images |
+| `PROXY_MEM_LIMIT`    | `512m`   | Memory limit per proxy container            |
+| `PROXY_CPUS`         | `1.0`    | CPU limit per proxy container               |
+| `PROXY_PIDS_LIMIT`   | `512`    | PID limit per proxy container               |
+| `PROXY_LOG_MAX_SIZE` | `10m`    | Log rotation max size (`json-file` driver)  |
+| `PROXY_LOG_MAX_FILE` | `3`      | Log rotation max files                      |
+| `PROXY_GATEWAY_*`    | —        | Gateway overrides: `MEM_LIMIT/CPUS/PIDS`    |
 
 ### MySQL proxy
 

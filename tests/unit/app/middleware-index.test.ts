@@ -17,6 +17,12 @@ vi.mock('@security/XssProtection', () => ({
   },
 }));
 
+vi.mock('@security/JwtSessions', () => ({
+  JwtSessions: {
+    isActive: vi.fn().mockResolvedValue(true),
+  },
+}));
+
 class MockValidationError extends Error {
   public toObject() {
     return { field: ['invalid'] };
