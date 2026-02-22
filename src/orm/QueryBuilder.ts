@@ -291,8 +291,7 @@ const tryParseSelectExpr = (
   | { kind: 'all' }
   | { kind: 'literal'; value: string }
   | { kind: 'column'; column: string; alias?: string }
-  | { kind: 'aggregate'; fn: SupportedAggregateFn; arg: string; alias?: string }
-  | null => {
+  | { kind: 'aggregate'; fn: SupportedAggregateFn; arg: string; alias?: string } => {
   const raw = expr.trim();
   if (raw.length === 0) {
     throw ErrorFactory.createDatabaseError('Empty SQL identifier for select column');
@@ -341,8 +340,6 @@ const buildSelectClause = (columns: string[], dialect?: string): string => {
   const out: string[] = [];
   for (const c of columns) {
     const parsed = tryParseSelectExpr(String(c));
-    if (parsed === null) continue;
-
     out.push(formatSelectExpr(parsed, dialect));
   }
 

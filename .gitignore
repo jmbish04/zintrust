@@ -111,3 +111,4 @@ promotion.zip
 routes/DirectTestRoutes.ts
 routes/TestRoutes.ts
 .dev.vars
+d1-statements.json

@@ -245,6 +245,10 @@ const executeParsing = (
   input.req.once('aborted', onAbortOrClose);
   input.req.once('close', onAbortOrClose);
 
+  input.req.on('error', (err) => {
+    rejectOnce(err);
+  });
+
   const ctx: BusboyContext = {
     fields,
     files,
