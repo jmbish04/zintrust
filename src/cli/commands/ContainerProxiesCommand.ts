@@ -4,6 +4,7 @@ import {
   resolveComposePath,
   runComposeWithFallback,
 } from '@cli/commands/DockerComposeCommandUtils';
+import { VersionChecker } from '@cli/services/VersionChecker';
 import { SpawnUtil } from '@cli/utils/spawn';
 import { Logger } from '@config/logger';
 import { ErrorFactory } from '@exceptions/ZintrustError';
@@ -38,7 +39,10 @@ const parsePlatforms = (value: string | undefined): string => {
 
 const parseTag = (value: string | undefined): string => {
   const raw = (value ?? '').trim();
-  if (raw === '') return 'latest';
+  if (raw === '') {
+    const currentVersion = VersionChecker.getCurrentVersion();
+    return currentVersion === '0.0.0' ? 'latest' : currentVersion;
+  }
   return raw;
 };
 
@@ -186,8 +190,7 @@ export const ContainerProxiesCommand = Object.freeze({
 
         command.option(
           '--tag <tag>',
-          'Docker image tag to publish (publish-images only)',
-          'latest'
+          'Docker image tag to publish (publish-images only). Defaults to current version and also tags :latest'
         );
         command.option(
           '--platforms <list>',

@@ -4,6 +4,7 @@ import {
   resolveComposePath,
   runComposeWithFallback,
 } from '@cli/commands/DockerComposeCommandUtils';
+import { VersionChecker } from '@cli/services/VersionChecker';
 import { SpawnUtil } from '@cli/utils/spawn';
 import { Logger } from '@config/logger';
 import { ErrorFactory } from '@exceptions/ZintrustError';
@@ -34,7 +35,10 @@ const parsePlatforms = (value: string | undefined): string => {
 
 const parseTag = (value: string | undefined): string => {
   const raw = (value ?? '').trim();
-  if (raw === '') return 'latest';
+  if (raw === '') {
+    const currentVersion = VersionChecker.getCurrentVersion();
+    return currentVersion === '0.0.0' ? 'latest' : currentVersion;
+  }
   return raw;
 };
 
@@ -118,8 +122,22 @@ const normalizeAction = (raw?: string): ContainerWorkersAction => {
   const value = (raw ?? '').trim().toLowerCase();
   if (value === 'build' || value === 'up') return value;
   if (value === 'publish-images') return value;
-  if (value === 'publish-workers' || value === 'publish-worker') return 'publish-workers';
-  if (value === 'publish-schedules' || value === 'publish-schedule') return 'publish-schedules';
+  if (
+    value === 'publish-workers' ||
+    value === 'publish-worker' ||
+    value === 'publish-workers-only' ||
+    value === 'publish-worker-only'
+  ) {
+    return 'publish-workers';
+  }
+  if (
+    value === 'publish-schedules' ||
+    value === 'publish-schedule' ||
+    value === 'publish-schedules-only' ||
+    value === 'publish-schedule-only'
+  ) {
+    return 'publish-schedules';
+  }
   throw ErrorFactory.createCliError(
     'Usage: zin cw <build|up|publish-images|publish-workers|publish-schedules> [options]'
   );
@@ -141,7 +159,10 @@ export const ContainerWorkersCommand = Object.freeze({
         command.option('--pull', 'Always attempt to pull a newer base image (build only)');
         command.option('--build', 'Build before running up (up only)');
 
-        command.option('--tag <tag>', 'Docker image tag to publish (publish-* only)', 'latest');
+        command.option(
+          '--tag <tag>',
+          'Docker image tag to publish (publish-* only). Defaults to current version and also tags :latest'
+        );
         command.option(
           '--platforms <list>',
           'Comma-separated platforms for buildx (publish-* only)',

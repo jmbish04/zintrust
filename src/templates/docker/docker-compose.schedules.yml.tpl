@@ -22,12 +22,42 @@ services:
       REDIS_DB: ${REDIS_DB:-0}
 
       # Database (for job-tracking cleanup schedule)
+      # Supported: postgresql | mysql | sqlserver | sqlite | d1 | d1-remote
+      # Tip: to use mysql or sqlserver, start the corresponding profile:
+      #   docker compose -f docker-compose.schedules.yml --profile mysql up -d
+      #   docker compose -f docker-compose.schedules.yml --profile sqlserver up -d
       DB_CONNECTION: ${DB_CONNECTION:-postgresql}
+
+      # PostgreSQL
       DB_HOST: ${DB_HOST:-postgres}
-      DB_PORT: ${DB_PORT:-5432}
+      DB_PORT_POSTGRESQL: ${DB_PORT_POSTGRESQL:-5432}
+      DB_DATABASE_POSTGRESQL: ${DB_DATABASE_POSTGRESQL:-zintrust}
+      DB_USERNAME_POSTGRESQL: ${DB_USERNAME_POSTGRESQL:-zintrust}
+      DB_PASSWORD_POSTGRESQL: ${DB_PASSWORD_POSTGRESQL:-zintrust}
+
+      # MySQL
+      DB_PORT: ${DB_PORT:-3306}
       DB_DATABASE: ${DB_DATABASE:-zintrust}
       DB_USERNAME: ${DB_USERNAME:-zintrust}
       DB_PASSWORD: ${DB_PASSWORD:-zintrust}
+
+      # SQL Server
+      DB_HOST_MSSQL: ${DB_HOST_MSSQL:-sqlserver}
+      DB_PORT_MSSQL: ${DB_PORT_MSSQL:-1433}
+      DB_DATABASE_MSSQL: ${DB_DATABASE_MSSQL:-zintrust}
+      DB_USERNAME_MSSQL: ${DB_USERNAME_MSSQL:-sa}
+      DB_PASSWORD_MSSQL: ${DB_PASSWORD_MSSQL:-YourStrong!Passw0rd}
+
+      # SQLite (no DB container; writes to local filesystem inside the container)
+      DB_DATABASE_SQLITE: ${DB_DATABASE_SQLITE:-.zintrust/dbs/zintrust.sqlite}
+
+      # Cloudflare D1 (requires Cloudflare credentials / remote proxy)
+      D1_DATABASE_ID: ${D1_DATABASE_ID:-}
+      D1_ACCOUNT_ID: ${D1_ACCOUNT_ID:-}
+      D1_API_TOKEN: ${D1_API_TOKEN:-}
+      D1_REMOTE_URL: ${D1_REMOTE_URL:-}
+      D1_REMOTE_KEY_ID: ${D1_REMOTE_KEY_ID:-}
+      D1_REMOTE_SECRET: ${D1_REMOTE_SECRET:-}
 
       # Job tracking cleanup schedule
       JOB_TRACKING_CLEANUP_ENABLED: ${JOB_TRACKING_CLEANUP_ENABLED:-false}
@@ -38,8 +68,6 @@ services:
       JOB_TRACKING_CLEANUP_LOCK_PROVIDER: ${JOB_TRACKING_CLEANUP_LOCK_PROVIDER:-redis}
     command: ['node', 'dist/bin/zin.js', 'schedule:start']
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     networks:
@@ -48,18 +76,58 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: ${DB_DATABASE:-zintrust}
-      POSTGRES_USER: ${DB_USERNAME:-zintrust}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-zintrust}
+      POSTGRES_DB: ${DB_DATABASE_POSTGRESQL:-zintrust}
+      POSTGRES_USER: ${DB_USERNAME_POSTGRESQL:-zintrust}
+      POSTGRES_PASSWORD: ${DB_PASSWORD_POSTGRESQL:-zintrust}
     ports:
       - '${POSTGRES_PORT:-5432}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${DB_USERNAME:-zintrust}']
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USERNAME_POSTGRESQL:-zintrust}']
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - zintrust-network
+
+  mysql:
+    profiles: ['mysql']
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-zintrust}
+      MYSQL_USER: ${DB_USERNAME:-zintrust}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-zintrust}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+    ports:
+      - '${MYSQL_PORT:-3306}:3306'
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD-SHELL', 'mysqladmin ping -h 127.0.0.1 -uroot -p${MYSQL_ROOT_PASSWORD:-root} --silent']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - zintrust-network
+
+  sqlserver:
+    profiles: ['sqlserver']
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: 'Y'
+      MSSQL_PID: ${MSSQL_PID:-Developer}
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-YourStrong!Passw0rd}
+    ports:
+      - '${SQLSERVER_PORT:-1433}:1433'
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: ['CMD-SHELL', '/opt/mssql-tools18/bin/sqlcmd -S 127.0.0.1 -U sa -P "${MSSQL_SA_PASSWORD:-YourStrong!Passw0rd}" -Q "SELECT 1" 1>/dev/null']
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
     networks:
       - zintrust-network
 
@@ -83,3 +151,5 @@ networks:
 volumes:
   postgres_data:
   redis_data:
+  mysql_data:
+  sqlserver_data:

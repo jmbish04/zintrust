@@ -88,6 +88,7 @@ Publish (Docker Hub, requires repo/org access):
 Common publish options:
 
 - `--tag <tag>`: Tag to publish (default: `latest`)
+- `--tag <tag>`: Tag to publish (default: current version; also pushes `:latest`)
 - `--platforms <list>`: Comma list for buildx (default: `linux/amd64,linux/arm64`)
 - `--no-also-latest`: If `--tag` is not `latest`, do not also push `:latest`
 
@@ -108,6 +109,7 @@ Publish (Docker Hub, requires repo/org access):
 Common publish options:
 
 - `--tag <tag>`: Tag to publish (default: `latest`)
+- `--tag <tag>`: Tag to publish (default: current version; also pushes `:latest`)
 - `--platforms <list>`: Comma list for buildx (default: `linux/amd64,linux/arm64`)
 - `--no-also-latest`: If `--tag` is not `latest`, do not also push `:latest`
 

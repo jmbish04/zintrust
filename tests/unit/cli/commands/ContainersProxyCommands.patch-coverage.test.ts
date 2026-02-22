@@ -15,7 +15,10 @@ describe('Cloudflare Containers proxy CLI commands (patch coverage)', () => {
       vi.spyOn(process, 'cwd').mockReturnValue('/cwd');
 
       vi.doMock('@node-singletons/path', () => ({ join: (...parts: string[]) => parts.join('/') }));
-      vi.doMock('@node-singletons/fs', () => ({ existsSync: vi.fn(() => true) }));
+      vi.doMock('@node-singletons/fs', () => ({
+        existsSync: vi.fn(() => true),
+        renameSync: vi.fn(),
+      }));
       vi.doMock('@config/logger', () => ({ Logger: { info: vi.fn() } }));
       const spawnAndWait = vi.fn(async () => 0);
       vi.doMock('@cli/utils/spawn', () => ({ SpawnUtil: { spawnAndWait } }));
@@ -43,7 +46,10 @@ describe('Cloudflare Containers proxy CLI commands (patch coverage)', () => {
       vi.spyOn(process, 'cwd').mockReturnValue('/cwd');
 
       vi.doMock('@node-singletons/path', () => ({ join: (...parts: string[]) => parts.join('/') }));
-      vi.doMock('@node-singletons/fs', () => ({ existsSync: vi.fn(() => true) }));
+      vi.doMock('@node-singletons/fs', () => ({
+        existsSync: vi.fn(() => true),
+        renameSync: vi.fn(),
+      }));
       vi.doMock('@cli/utils/spawn', () => ({ SpawnUtil: { spawnAndWait: vi.fn() } }));
 
       const { DockerCommand } = await import('@cli/commands/DockerCommand');
@@ -66,6 +72,7 @@ describe('Cloudflare Containers proxy CLI commands (patch coverage)', () => {
       vi.doMock('@node-singletons/path', () => ({ join: (...parts: string[]) => parts.join('/') }));
       vi.doMock('@node-singletons/fs', () => ({
         existsSync: vi.fn((path: string) => path === '/cwd/wrangler.containers-proxy.jsonc'),
+        renameSync: vi.fn(),
       }));
       vi.doMock('@config/logger', () => ({ Logger: { info: vi.fn() } }));
       const spawnAndWait = vi.fn(async () => 5);
@@ -87,7 +94,10 @@ describe('Cloudflare Containers proxy CLI commands (patch coverage)', () => {
       vi.spyOn(process, 'cwd').mockReturnValue('/cwd');
 
       vi.doMock('@node-singletons/path', () => ({ join: (...parts: string[]) => parts.join('/') }));
-      vi.doMock('@node-singletons/fs', () => ({ existsSync: vi.fn(() => false) }));
+      vi.doMock('@node-singletons/fs', () => ({
+        existsSync: vi.fn(() => false),
+        renameSync: vi.fn(),
+      }));
 
       const { DockerCommand } = await import('@cli/commands/DockerCommand');
       await expect(
@@ -99,7 +109,10 @@ describe('Cloudflare Containers proxy CLI commands (patch coverage)', () => {
       vi.spyOn(process, 'cwd').mockReturnValue('/cwd');
 
       vi.doMock('@node-singletons/path', () => ({ join: (...parts: string[]) => parts.join('/') }));
-      vi.doMock('@node-singletons/fs', () => ({ existsSync: vi.fn(() => false) }));
+      vi.doMock('@node-singletons/fs', () => ({
+        existsSync: vi.fn(() => false),
+        renameSync: vi.fn(),
+      }));
 
       const { DockerCommand } = await import('@cli/commands/DockerCommand');
       await expect(DockerCommand.create().execute({})).rejects.toThrow(
@@ -119,6 +132,7 @@ describe('Cloudflare Containers proxy CLI commands (patch coverage)', () => {
       vi.doMock('@node-singletons/path', () => ({ join: (...parts: string[]) => parts.join('/') }));
       vi.doMock('@node-singletons/fs', () => ({
         existsSync: vi.fn((path: string) => path === '/cwd/wrangler.containers-proxy.jsonc'),
+        renameSync: vi.fn(),
       }));
       vi.doMock('@config/logger', () => ({ Logger: { info: vi.fn() } }));
       const spawnAndWait = vi.fn(async () => 0);
@@ -140,7 +154,10 @@ describe('Cloudflare Containers proxy CLI commands (patch coverage)', () => {
     it('throws when the wrangler config file does not exist', async () => {
       vi.spyOn(process, 'cwd').mockReturnValue('/cwd');
       vi.doMock('@node-singletons/path', () => ({ join: (...parts: string[]) => parts.join('/') }));
-      vi.doMock('@node-singletons/fs', () => ({ existsSync: vi.fn(() => false) }));
+      vi.doMock('@node-singletons/fs', () => ({
+        existsSync: vi.fn(() => false),
+        renameSync: vi.fn(),
+      }));
 
       const { DeployContainersProxyCommand } =
         await import('@cli/commands/DeployContainersProxyCommand');
@@ -169,6 +186,7 @@ describe('Cloudflare Containers proxy CLI commands (patch coverage)', () => {
         writeFileSync,
         mkdirSync,
         copyFileSync,
+        renameSync: vi.fn(),
       }));
 
       const { InitContainersProxyCommand } =
@@ -201,6 +219,7 @@ describe('Cloudflare Containers proxy CLI commands (patch coverage)', () => {
         writeFileSync,
         mkdirSync,
         copyFileSync,
+        renameSync: vi.fn(),
       }));
 
       const { InitContainersProxyCommand } =
@@ -240,6 +259,7 @@ describe('Cloudflare Containers proxy CLI commands (patch coverage)', () => {
         writeFileSync,
         mkdirSync,
         copyFileSync,
+        renameSync: vi.fn(),
       }));
 
       const { InitContainersProxyCommand } =

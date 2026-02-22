@@ -12,6 +12,7 @@
     "declarationMap": false,
     "sourceMap": false,
     "composite": false,
+    "skipLibCheck": true,
     "tsBuildInfoFile": "./dist/.tsbuildinfo",
     "paths": {}
   },
