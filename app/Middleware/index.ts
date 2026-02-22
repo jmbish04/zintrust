@@ -187,13 +187,14 @@ export const jwtMiddleware = (jwtManager: JwtManagerInput, algorithm: JwtAlgorit
       return;
     }
 
-    if (await TokenRevocation.isRevoked(token)) {
-      res.setStatus(401).json({ error: 'Invalid or expired token' });
-      return;
-    }
-
     try {
       const payload = resolveJwtManager(jwtManager).verify(token, algorithm);
+
+      if (await TokenRevocation.isRevoked(token)) {
+        res.setStatus(401).json({ error: 'Invalid or expired token' });
+        return;
+      }
+
       // Store in request context (TypeScript allows dynamic properties)
       req.user = payload;
       await next();

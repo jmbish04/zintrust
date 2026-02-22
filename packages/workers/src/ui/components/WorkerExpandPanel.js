@@ -202,8 +202,6 @@ const createEditJsonHandler = (worker, render) => {
  */
 const createWorkerExpandPanel = (worker, container) => {
   let element;
-  const jsonViewer = null;
-  const jsonEditor = null;
 
   const render = () => {
     if (element) {
@@ -229,12 +227,6 @@ const createWorkerExpandPanel = (worker, container) => {
   };
 
   const destroy = () => {
-    if (jsonViewer) {
-      jsonViewer.destroy();
-    }
-    if (jsonEditor) {
-      jsonEditor.destroy();
-    }
     element.remove();
   };
 
