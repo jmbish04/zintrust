@@ -73,6 +73,13 @@ ENCRYPTION_CIPHER=aes-256-cbc
 JWT_ENABLED=true
 # If empty, JWT uses APP_KEY in dev. For production, set a dedicated JWT_SECRET.
 JWT_SECRET=
+
+# Bulletproof Auth signing secret (SignedRequest proof-of-possession).
+# If empty, ZinTrust will fallback to APP_KEY (convenient, but not recommended).
+# Strongly recommended: set a dedicated BULLETPROOF_SIGNING_SECRET.
+# Rotation: old secrets can be kept in BULLETPROOF_SIGNING_SECRET_BK as a JSON array.
+BULLETPROOF_SIGNING_SECRET=
+BULLETPROOF_SIGNING_SECRET_BK=[]
 JWT_ALGORITHM=HS256
 JWT_EXPIRES_IN=3600
 JWT_REFRESH_EXPIRES_IN=7d

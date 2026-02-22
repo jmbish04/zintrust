@@ -203,12 +203,24 @@ zin config reset               # Reset to defaults
 ### Security
 
 ```bash
+# Application key
 zin key:generate               # Generate APP_KEY
 zin key:generate --show        # Show key without saving
 
-# Mint a dev JWT for testing protected routes (prints a token)
+# Bulletproof Auth signing secret (generates BULLETPROOF_SIGNING_SECRET)
+zin key:bulletproof            # Generate and rotate into .env
+zin key:bulletproof --show     # Print only (do not save)
+zin key:bulletproof --max-backups 3   # Keep 3 rotation backups
+
+# Mint a dev JWT for testing protected routes
 zin jwt:dev --sub 1 --email dev@example.com --role admin
 zin jwt:dev --json --expires 30m
+
+# Mint a Bulletproof-compatible JWT (includes deviceId + binding claims)
+zin jwt:dev --sub 1 --email dev@example.com --role admin \
+  --device-id dev_abc123 \
+  --tz "America/New_York" \
+  --ua "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
 ```
 
 ### Plugin Management

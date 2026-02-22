@@ -50,6 +50,12 @@ export const JwtAuthMiddleware = Object.freeze({
     }
 
     return async (req: IRequest, res: IResponse, next: () => Promise<void>): Promise<void> => {
+      // If a stronger auth strategy already authenticated this request, do not re-verify.
+      if (req.context?.['authStrategy'] === 'bulletproof' && req.user !== undefined) {
+        await next();
+        return;
+      }
+
       const authorizationHeader = getHeaderValue(req.getHeader('authorization'));
       if (authorizationHeader === '') {
         res.setStatus(401).json({ error: 'Missing authorization header' });

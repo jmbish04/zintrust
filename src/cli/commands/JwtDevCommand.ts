@@ -7,6 +7,7 @@ import { BaseCommand, type CommandOptions, type IBaseCommand } from '@cli/BaseCo
 import { appConfig } from '@config/app';
 import { securityConfig } from '@config/security';
 import { ErrorFactory } from '@exceptions/ZintrustError';
+import * as crypto from '@node-singletons/crypto';
 import { JwtManager, type IJwtManager, type JwtPayload } from '@security/JwtManager';
 import type { Command } from 'commander';
 
@@ -14,9 +15,56 @@ type JwtDevCommandOptions = CommandOptions & {
   sub?: string;
   email?: string;
   role?: string;
+  deviceId?: string;
+  tz?: string;
+  ua?: string;
+  uaHash?: string;
+  tenantId?: string;
   expires?: string;
   json?: boolean;
   allowProduction?: boolean;
+};
+
+const sha256Hex = (value: string): string => {
+  return crypto.createHash('sha256').update(value).digest('hex');
+};
+
+const optionalTrimmed = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed === '' ? undefined : trimmed;
+};
+
+const buildPayload = (options: JwtDevCommandOptions): JwtPayload => {
+  const payload: JwtPayload = {};
+
+  const sub = optionalTrimmed(options.sub);
+  if (sub) payload.sub = sub;
+
+  const email = optionalTrimmed(options.email);
+  if (email) (payload as unknown as Record<string, unknown>)['email'] = email;
+
+  const role = optionalTrimmed(options.role);
+  if (role) (payload as unknown as Record<string, unknown>)['role'] = role;
+
+  const deviceId = optionalTrimmed(options.deviceId);
+  if (deviceId) (payload as unknown as Record<string, unknown>)['deviceId'] = deviceId;
+
+  const tenantId = optionalTrimmed(options.tenantId);
+  if (tenantId) (payload as unknown as Record<string, unknown>)['tenantId'] = tenantId;
+
+  const tz = optionalTrimmed(options.tz);
+  if (tz) (payload as unknown as Record<string, unknown>)['tz'] = tz;
+
+  const uaHash = optionalTrimmed(options.uaHash);
+  if (uaHash) {
+    (payload as unknown as Record<string, unknown>)['uaHash'] = uaHash;
+  } else {
+    const ua = optionalTrimmed(options.ua);
+    if (ua) (payload as unknown as Record<string, unknown>)['uaHash'] = sha256Hex(ua);
+  }
+
+  return payload;
 };
 
 const parseExpiresToSeconds = (value: unknown): number => {
@@ -106,6 +154,11 @@ export const JwtDevCommand: IBaseCommand = Object.freeze(
         .option('--sub <sub>', 'JWT subject claim (default: 1)', '1')
         .option('--email <email>', 'Email claim')
         .option('--role <role>', 'Role claim')
+        .option('--device-id <id>', 'Attach deviceId claim (for bulletproof auth)')
+        .option('--tenant-id <id>', 'Attach tenantId claim')
+        .option('--tz <tz>', 'Attach timezone claim (tz)')
+        .option('--ua <ua>', 'Compute and attach uaHash claim from a User-Agent string')
+        .option('--ua-hash <hash>', 'Attach uaHash claim directly (hex)')
         .option('--expires <duration>', "Expiry: seconds or 30m/1h/7d (default: '1h')", '1h')
         .option('--json', 'Output machine-readable JSON')
         .option('--allow-production', 'Allow running in production (dangerous)');
@@ -115,17 +168,7 @@ export const JwtDevCommand: IBaseCommand = Object.freeze(
 
       const expiresInSeconds = parseExpiresToSeconds(options.expires);
 
-      const payload: JwtPayload = {
-        ...(typeof options.sub === 'string' && options.sub.trim() !== ''
-          ? { sub: options.sub.trim() }
-          : {}),
-        ...(typeof options.email === 'string' && options.email.trim() !== ''
-          ? { email: options.email.trim() }
-          : {}),
-        ...(typeof options.role === 'string' && options.role.trim() !== ''
-          ? { role: options.role.trim() }
-          : {}),
-      };
+      const payload: JwtPayload = buildPayload(options);
 
       const token = createJwt(payload, expiresInSeconds);
 

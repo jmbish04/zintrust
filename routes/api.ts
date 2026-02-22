@@ -106,10 +106,14 @@ function registerApiV1Routes(
         destroy: userController.destroy,
       },
       {
-        middleware: ['auth', 'jwt'],
-        store: { middleware: ['auth', 'jwt', 'userMutationRateLimit', 'validateUserStore'] },
-        update: { middleware: ['auth', 'jwt', 'userMutationRateLimit', 'validateUserUpdate'] },
-        destroy: { middleware: ['auth', 'jwt', 'userMutationRateLimit'] },
+        middleware: ['auth', 'bulletproof'],
+        store: {
+          middleware: ['auth', 'bulletproof', 'userMutationRateLimit', 'validateUserStore'],
+        },
+        update: {
+          middleware: ['auth', 'bulletproof', 'userMutationRateLimit', 'validateUserUpdate'],
+        },
+        destroy: { middleware: ['auth', 'bulletproof', 'userMutationRateLimit'] },
       }
     );
 
