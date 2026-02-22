@@ -2,20 +2,6 @@ import { Logger, type IRequest, type IResponse } from '@zintrust/core';
 
 export type RouteHandler = (req: IRequest, res: IResponse) => Promise<void> | void;
 
-interface FeaturesConfig {
-  clustering: boolean;
-  metrics: boolean;
-  autoScaling: boolean;
-  circuitBreaker: boolean;
-  deadLetterQueue: boolean;
-  resourceMonitoring: boolean;
-  compliance: boolean;
-  observability: boolean;
-  plugins: boolean;
-  versioning: boolean;
-  datacenterOrchestration: boolean;
-}
-
 const VALID_FEATURES = new Set([
   'clustering',
   'metrics',
@@ -34,14 +20,16 @@ export const withFeaturesValidation = (handler: RouteHandler): RouteHandler => {
   return async (req: IRequest, res: IResponse): Promise<void> => {
     try {
       const data = req.data();
-      const features = data['features'] as FeaturesConfig;
+      const features = data['features'] as unknown;
 
       if (!features) {
         return handler(req, res); // Skip validation if features is not provided
       }
 
-      // Check if features is an object
-      if (typeof features !== 'object' || features === null || Array.isArray(features)) {
+      const isPlainObject =
+        Object.prototype.toString.call(features) === '[object Object]' && !Array.isArray(features);
+
+      if (!isPlainObject) {
         return res.setStatus(400).json({
           error: 'Invalid features configuration',
           message: 'Features must be an object',
@@ -50,7 +38,8 @@ export const withFeaturesValidation = (handler: RouteHandler): RouteHandler => {
       }
 
       // Validate each feature key and value
-      const featureKeys = Object.keys(features);
+      const featuresObj = features as Record<string, unknown>;
+      const featureKeys = Object.keys(featuresObj);
       for (const key of featureKeys) {
         if (!VALID_FEATURES.has(key)) {
           return res.setStatus(400).json({
@@ -60,7 +49,7 @@ export const withFeaturesValidation = (handler: RouteHandler): RouteHandler => {
           });
         }
 
-        const value = features[key as keyof FeaturesConfig];
+        const value = featuresObj[key];
         if (typeof value !== 'boolean') {
           return res.setStatus(400).json({
             error: 'Invalid feature value',

@@ -496,12 +496,12 @@ const sleepMs = async (ms: number): Promise<void> => {
   });
 };
 
-const createContainerNotReadyResponse = (message?: string): Response => {
+const createContainerNotReadyResponse = (_message?: string): Response => {
   return createJson(
     {
       error: 'container_not_ready',
       service: 'zintrust-containers-proxy',
-      message: message ?? 'Container is starting. Retry shortly.',
+      message: 'Container is starting. Retry shortly.',
     },
     { status: 503 }
   );

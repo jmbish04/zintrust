@@ -62,9 +62,9 @@ type UnrefableTimer = { unref: () => void };
 function isUnrefableTimer(value: unknown): value is UnrefableTimer {
   return (
     typeof value === 'object' &&
-    value !== null &&
+    value instanceof Object &&
     'unref' in value &&
-    typeof value.unref === 'function'
+    typeof (value as UnrefableTimer).unref === 'function'
   );
 }
 
