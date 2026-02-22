@@ -116,32 +116,32 @@
       "containers": [
         {
           "class_name": "ZintrustMySqlProxyContainer",
-          "image": "./Dockerfile",
+          "image": "docker.io/zintrust/zintrust:latest",
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustPostgresProxyContainer",
-          "image": "./Dockerfile",
+          "image": "docker.io/zintrust/zintrust:latest",
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustRedisProxyContainer",
-          "image": "./Dockerfile",
+          "image": "docker.io/zintrust/zintrust:latest",
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustMongoDbProxyContainer",
-          "image": "./Dockerfile",
+          "image": "docker.io/zintrust/zintrust:latest",
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustSqlServerProxyContainer",
-          "image": "./Dockerfile",
+          "image": "docker.io/zintrust/zintrust:latest",
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustSmtpProxyContainer",
-          "image": "./Dockerfile",
+          "image": "docker.io/zintrust/zintrust:latest",
           "max_instances": 10,
         },
       ],
@@ -187,32 +187,32 @@
       "containers": [
         {
           "class_name": "ZintrustMySqlProxyContainer",
-          "image": "./Dockerfile",
+          "image": "docker.io/zintrust/zintrust:latest",
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustPostgresProxyContainer",
-          "image": "./Dockerfile",
+          "image": "docker.io/zintrust/zintrust:latest",
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustRedisProxyContainer",
-          "image": "./Dockerfile",
+          "image": "docker.io/zintrust/zintrust:latest",
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustMongoDbProxyContainer",
-          "image": "./Dockerfile",
+          "image": "docker.io/zintrust/zintrust:latest",
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustSqlServerProxyContainer",
-          "image": "./Dockerfile",
+          "image": "docker.io/zintrust/zintrust:latest",
           "max_instances": 10,
         },
         {
           "class_name": "ZintrustSmtpProxyContainer",
-          "image": "./Dockerfile",
+          "image": "docker.io/zintrust/zintrust:latest",
           "max_instances": 10,
         },
       ],

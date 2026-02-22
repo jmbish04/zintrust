@@ -22,7 +22,7 @@ export function registerRoutes(router: IRouter): void {
     registerPublicRoutes(router);
     registerApiV1Routes(router, authController, userController);
     registerAdminRoutes(router);
-} catch (error: unknown) {
+  } catch (error: unknown) {
     throw ErrorFactory.createConfigError(
       `Failed to register routes: ${(error as Error).message}`,
       error as Error

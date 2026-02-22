@@ -5,6 +5,8 @@ dist/
 .env.*.local
 .env.pull
 !.env.example
+.dev.vars
+.dev.vars.*
 *.log
 npm-debug.log*
 .DS_Store
