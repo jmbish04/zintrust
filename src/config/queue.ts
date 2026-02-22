@@ -6,6 +6,9 @@
 
 import { Cloudflare } from '@config/cloudflare';
 import { Env } from '@config/env';
+import { Logger } from '@config/logger';
+import { middlewareConfig } from '@config/middleware';
+import { ErrorFactory } from '@exceptions/ZintrustError';
 import { ZintrustLang } from '@lang/lang';
 
 import type { QueueConfigWithDrivers, QueueDriverName, QueueDriversConfig } from '@config/type';
@@ -176,16 +179,40 @@ const createBaseMonitor = (): {
   middleware: ReadonlyArray<string>;
   autoRefresh: boolean;
   refreshIntervalMs: number;
-} => ({
-  enabled: Env.getBool('QUEUE_MONITOR_ENABLED', false),
-  basePath: Env.get('QUEUE_MONITOR_BASE_PATH', '/queue-monitor'),
-  middleware: Env.get('QUEUE_MONITOR_MIDDLEWARE', '')
+} => {
+  const enabled = Env.getBool('QUEUE_MONITOR_ENABLED', false);
+  const basePath = Env.get('QUEUE_MONITOR_BASE_PATH', '/queue-monitor');
+  const middleware = Env.get('QUEUE_MONITOR_MIDDLEWARE', '')
     .split(',')
     .map((m: string) => m.trim())
-    .filter((m: string | string[]) => m.length > 0) as ReadonlyArray<string>,
-  autoRefresh: Env.getBool('QUEUE_MONITOR_AUTO_REFRESH', true),
-  refreshIntervalMs: Env.getInt('QUEUE_MONITOR_REFRESH_MS', 5000),
-});
+    .filter((m: string) => m.length > 0) as ReadonlyArray<string>;
+
+  if (enabled && middleware.length > 0) {
+    const knownKeys = new Set(Object.keys(middlewareConfig.route ?? {}));
+    const unknownKeys = middleware.filter((name) => !knownKeys.has(name));
+
+    if (unknownKeys.length > 0) {
+      Logger.error('Unknown QUEUE_MONITOR_MIDDLEWARE keys configured', {
+        unknownKeys,
+        basePath,
+      });
+
+      throw ErrorFactory.createConfigError(
+        `Unknown QUEUE_MONITOR_MIDDLEWARE key(s): ${unknownKeys.join(
+          ', '
+        )}. These must match registered route middleware keys in your app.`
+      );
+    }
+  }
+
+  return {
+    enabled,
+    basePath,
+    middleware,
+    autoRefresh: Env.getBool('QUEUE_MONITOR_AUTO_REFRESH', true),
+    refreshIntervalMs: Env.getInt('QUEUE_MONITOR_REFRESH_MS', 5000),
+  };
+};
 
 const createQueueConfig = (): {
   default: QueueDriverName;

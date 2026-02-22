@@ -192,6 +192,52 @@ describe('proxy/container extra patch coverage', () => {
     );
   });
 
+  it('ContainerProxiesCommand defaults to current version tag + latest when --tag is omitted', async () => {
+    vi.doMock('@cli/services/VersionChecker', () => ({
+      VersionChecker: {
+        getCurrentVersion: () => '9.9.9',
+      },
+    }));
+
+    const { SpawnUtil } = await import('@cli/utils/spawn');
+    vi.spyOn(SpawnUtil, 'spawnAndWait').mockResolvedValue(0);
+
+    const { ContainerProxiesCommand } = await import('@cli/commands/ContainerProxiesCommand');
+
+    await ContainerProxiesCommand.create().execute({
+      args: ['publish-images'],
+      platforms: 'linux/amd64',
+    } as any);
+
+    const calls = (SpawnUtil.spawnAndWait as unknown as { mock: { calls: unknown[][] } }).mock
+      .calls;
+
+    expect(calls.length).toBeGreaterThanOrEqual(2);
+    expect(calls[0][0]).toEqual(
+      expect.objectContaining({
+        command: 'docker',
+        args: expect.arrayContaining([
+          '-t',
+          'zintrust/zintrust-proxy:9.9.9',
+          '-t',
+          'zintrust/zintrust-proxy:latest',
+        ]),
+      })
+    );
+
+    expect(calls[1][0]).toEqual(
+      expect.objectContaining({
+        command: 'docker',
+        args: expect.arrayContaining([
+          '-t',
+          'zintrust/zintrust-proxy-gateway:9.9.9',
+          '-t',
+          'zintrust/zintrust-proxy-gateway:latest',
+        ]),
+      })
+    );
+  });
+
   it('ContainerProxiesCommand publishes only runtime image when --only runtime', async () => {
     const { SpawnUtil } = await import('@cli/utils/spawn');
     vi.spyOn(SpawnUtil, 'spawnAndWait').mockResolvedValue(0);
