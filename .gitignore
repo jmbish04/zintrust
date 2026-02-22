@@ -112,3 +112,4 @@ routes/DirectTestRoutes.ts
 routes/TestRoutes.ts
 .dev.vars
 d1-statements.json
+scripts/bulletproof-auth-smoke.mjs
