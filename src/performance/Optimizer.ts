@@ -601,7 +601,7 @@ export function createMemoized<T extends (...args: any[]) => any>(
           typeof a === 'string' ||
           typeof a === 'number' ||
           typeof a === 'boolean' ||
-          a === 'undefined'
+          a === undefined
       );
       key = arePrimitives ? args.join('|') : JSON.stringify(args);
     } else {

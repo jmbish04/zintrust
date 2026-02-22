@@ -23,48 +23,35 @@ export type SecretsManagerClient = {
 };
 
 function getErrorCode(error: unknown): string {
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    typeof (error as Record<string, unknown>).code === 'string'
-  ) {
-    return (error as Record<string, unknown>).code as string;
-  }
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    typeof (error as Record<string, unknown>).cause === 'object' &&
-    (error as Record<string, unknown>).cause !== null &&
-    typeof ((error as Record<string, unknown>).cause as Record<string, unknown>).code === 'string'
-  ) {
-    return ((error as Record<string, unknown>).cause as Record<string, unknown>).code as string;
+  if (error && typeof error === 'object') {
+    const err = error as Record<string, unknown>;
+    if (typeof err.code === 'string') return err.code;
+
+    const cause = err.cause;
+    if (cause && typeof cause === 'object') {
+      const causeErr = cause as Record<string, unknown>;
+      if (typeof causeErr.code === 'string') return causeErr.code;
+    }
   }
   return '';
 }
 
 function getErrorMessage(error: unknown): string {
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    typeof (error as Record<string, unknown>).message === 'string'
-  ) {
-    return (error as Record<string, unknown>).message as string;
-  }
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    typeof (error as Record<string, unknown>).cause === 'object' &&
-    (error as Record<string, unknown>).cause !== null &&
-    typeof ((error as Record<string, unknown>).cause as Record<string, unknown>).message ===
-      'string'
-  ) {
-    return ((error as Record<string, unknown>).cause as Record<string, unknown>).message as string;
+  if (error && typeof error === 'object') {
+    const err = error as Record<string, unknown>;
+    if (typeof err.message === 'string') return err.message;
+
+    const cause = err.cause;
+    if (cause && typeof cause === 'object') {
+      const causeErr = cause as Record<string, unknown>;
+      if (typeof causeErr.message === 'string') return causeErr.message;
+    }
   }
   return '';
 }
 
 function isMissingEsmPackage(error: unknown, packageName: string): boolean {
-  if (typeof error !== 'object' || error === null) return false;
+  if (!error || typeof error !== 'object') return false;
   const code = getErrorCode(error);
   const message = getErrorMessage(error);
   if (code === 'ERR_MODULE_NOT_FOUND') return true;

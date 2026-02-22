@@ -69,6 +69,18 @@ export const createProxyServer = (
     try {
       const body = await readBody(req, options.maxBodyBytes);
 
+      const rawUrl = req.url ?? '';
+      if (
+        rawUrl.startsWith('/containerstarthealthcheck') ||
+        rawUrl.startsWith('containerstarthealthcheck')
+      ) {
+        respond(res, {
+          status: 200,
+          body: { status: 'ok' },
+        });
+        return;
+      }
+
       if ((req.url ?? '').startsWith('/health')) {
         const response = await options.backend.health();
         respond(res, response);

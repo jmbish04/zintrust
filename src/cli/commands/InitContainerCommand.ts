@@ -10,6 +10,7 @@ services:
   # Workers/Jobs API Service (Port 7772)
   # Exposes the Workers API to create/manage jobs
   workers-api:
+    image: \${WORKERS_IMAGE:-zintrust/zintrust-workers:latest}
     build:
       context: .
       dockerfile: Dockerfile

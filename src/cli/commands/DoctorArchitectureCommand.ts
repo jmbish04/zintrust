@@ -13,7 +13,7 @@ export const DoctorArchitectureCommand = Object.freeze({
       async execute(): Promise<void> {
         Logger.info('🩺 Diagnosing Architecture Configuration...');
 
-        const mode: RuntimeMode = getRuntimeMode() as RuntimeMode;
+        const mode: RuntimeMode = getRuntimeMode();
         const workerEnabled = Env.getBool('WORKER_ENABLED', true);
         const dockerWorker = Env.getBool('DOCKER_WORKER', false);
 

@@ -103,6 +103,19 @@ zin cp up -d
 zin cp down
 ```
 
+Publishing Docker images (maintainers / requires Docker Hub access):
+
+```bash
+# runtime image (zintrust/zintrust) + gateway image (zintrust/zintrust-proxy-gateway)
+zin docker push --tag <version>
+
+# only the gateway image
+zin docker push --tag <version> --only gateway
+
+# only the runtime image
+zin docker push --tag <version> --only runtime
+```
+
 Cloud deploy targets continue to work with `zin deploy <target>`:
 
 ```bash

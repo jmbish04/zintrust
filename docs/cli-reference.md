@@ -74,6 +74,22 @@ zin deploy:ccp -e staging
 - `zin init:ecosystem` - Scaffold `docker-compose.ecosystem.yml` and `docker-compose.schedules.yml`
 - Proxy init aliases: `zin init:cp`, `zin init:container-proxies`, `zin init:py`
 
+## Container Workers Commands
+
+- `zin cw build`: Build the container workers image (`docker-compose.workers.yml`)
+- `zin cw up`: Start container workers
+
+Publish (Docker Hub, requires repo/org access):
+
+- `zin docker push`: Build and push Docker images via Docker buildx
+
+Options:
+
+- `--tag <tag>`: Tag to publish (default: current version; also pushes `:latest`)
+- `--platforms <list>`: Comma list for buildx (default: `linux/amd64,linux/arm64`)
+- `--no-also-latest`: If `--tag` is not `latest`, do not also push `:latest`
+- `--only <target>`: `runtime` | `gateway` | `both` (default: `both`)
+
 ## Container Proxies Commands
 
 - `zin cp build`: Build proxy stack images
@@ -81,6 +97,17 @@ zin deploy:ccp -e staging
 - `zin cp up -d`: Start proxy stack in detached mode
 - `zin cp down`: Stop proxy stack
 - `zin cp down --volumes`: Stop proxy stack and remove named volumes
+
+Publish (Docker Hub, requires repo/org access):
+
+- `zin docker push`: Build and push Docker images via Docker buildx
+
+Options:
+
+- `--tag <tag>`: Tag to publish (default: current version; also pushes `:latest`)
+- `--platforms <list>`: Comma list for buildx (default: `linux/amd64,linux/arm64`)
+- `--no-also-latest`: If `--tag` is not `latest`, do not also push `:latest`
+- `--only <target>`: `runtime` | `gateway` | `both` (default: `both`)
 
 ## Routes Command
 

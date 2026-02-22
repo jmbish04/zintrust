@@ -5,6 +5,8 @@ dist/
 .env.*.local
 .env.pull
 !.env.example
+.dev.vars
+.dev.vars.*
 *.log
 npm-debug.log*
 .DS_Store
@@ -108,3 +110,4 @@ promotion.zip
 .github/instructions/helper_usage.instructions.md
 routes/DirectTestRoutes.ts
 routes/TestRoutes.ts
+.dev.vars

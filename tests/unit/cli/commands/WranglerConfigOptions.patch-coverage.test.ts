@@ -1,3 +1,4 @@
+/* eslint-disable max-nested-callbacks */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('Wrangler --config options (patch coverage)', () => {

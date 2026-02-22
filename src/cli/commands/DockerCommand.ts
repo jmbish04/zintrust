@@ -1,9 +1,11 @@
+import { generateUuid } from '@/common/utility';
 import type { CommandOptions, IBaseCommand } from '@cli/BaseCommand';
 import { BaseCommand } from '@cli/BaseCommand';
+import { DockerPushCommand } from '@cli/commands/DockerPushCommand';
 import { SpawnUtil } from '@cli/utils/spawn';
 import { Logger } from '@config/logger';
 import { ErrorFactory } from '@exceptions/ZintrustError';
-import { existsSync } from '@node-singletons/fs';
+import { existsSync, renameSync } from '@node-singletons/fs';
 import { join } from '@node-singletons/path';
 import type { Command } from 'commander';
 
@@ -57,6 +59,88 @@ const resolveWranglerConfig = (cwd: string, options: DockerCommandOptions): stri
   );
 };
 
+const isContainersProxyConfig = (config: string): boolean => {
+  const base = config.split(/[/\\]/).pop() ?? config;
+  return (
+    base === 'wrangler.containers-proxy.jsonc' ||
+    base === 'wrangler.containers-proxy.json' ||
+    base === 'wrangler.containers-proxy.toml' ||
+    base.startsWith('wrangler.containers-proxy.')
+  );
+};
+
+const withDevVarsForConfig = async <T>(
+  cwd: string,
+  config: string,
+  envName: string,
+  fn: () => Promise<T>
+): Promise<T> => {
+  const nonce = generateUuid();
+  const moved: Array<{ from: string; to: string }> = [];
+  const swappedIn: Array<{ from: string; to: string }> = [];
+
+  const disable = (name: string): void => {
+    const from = join(cwd, name);
+    if (!existsSync(from)) return;
+    const to = join(cwd, `${name}.disabled-by-zin-${nonce}`);
+    renameSync(from, to);
+    moved.push({ from, to });
+  };
+
+  const swapIn = (source: string, target: string): void => {
+    const from = join(cwd, source);
+    if (!existsSync(from)) return;
+
+    const to = join(cwd, target);
+    if (existsSync(to)) return;
+
+    renameSync(from, to);
+    swappedIn.push({ from, to });
+  };
+
+  try {
+    if (isContainersProxyConfig(config)) {
+      // For containers-proxy configs, we want `.dev.vars*` to exist but only for
+      // this run. Users keep the files renamed as `.dev.vars*.containers-proxy`.
+      swapIn('.dev.vars.containers-proxy', '.dev.vars');
+      if (envName !== '') {
+        swapIn(`.dev.vars.${envName}.containers-proxy`, `.dev.vars.${envName}`);
+      }
+      return await fn();
+    }
+
+    // For all other configs, disable `.dev.vars*` so Wrangler relies on `.env*`.
+    disable('.dev.vars');
+    disable('.dev.vars.local');
+    disable('.dev.vars.staging');
+    disable('.dev.vars.staging.local');
+    if (envName !== '') {
+      disable(`.dev.vars.${envName}`);
+      disable(`.dev.vars.${envName}.local`);
+    }
+
+    return await fn();
+  } finally {
+    const restoreSwaps = swappedIn.slice().reverse();
+    for (const item of restoreSwaps) {
+      try {
+        if (existsSync(item.to) && !existsSync(item.from)) renameSync(item.to, item.from);
+      } catch {
+        // noop
+      }
+    }
+
+    const restoreMoved = moved.slice().reverse();
+    for (const item of restoreMoved) {
+      try {
+        if (existsSync(item.to)) renameSync(item.to, item.from);
+      } catch {
+        // noop
+      }
+    }
+  }
+};
+
 const executeDocker = async (options: DockerCommandOptions): Promise<void> => {
   const cwd = process.cwd();
   const config = resolveWranglerConfig(cwd, options);
@@ -68,7 +152,9 @@ const executeDocker = async (options: DockerCommandOptions): Promise<void> => {
   if (env.length > 0) args.push('--env', env);
 
   Logger.info('Starting Wrangler dev (Containers/Docker-backed)...');
-  const exitCode = await SpawnUtil.spawnAndWait({ command: 'wrangler', args, env: process.env });
+  const exitCode = await withDevVarsForConfig(cwd, config, env, async () => {
+    return SpawnUtil.spawnAndWait({ command: 'wrangler', args, env: process.env });
+  });
   process.exit(exitCode);
 };
 
@@ -79,6 +165,12 @@ export const DockerCommand = Object.freeze({
       aliases: ['dkr', 'dk'],
       description: 'Run Wrangler dev using a Docker-backed Cloudflare Containers config',
       addOptions: (command: Command): void => {
+        // `zin docker push` (subcommand) for Docker Hub publishing.
+        // Keep `zin docker` itself as the Wrangler dev command.
+        const pushCommand = DockerPushCommand.create().getCommand();
+        pushCommand.name('push');
+        command.addCommand(pushCommand);
+
         command.option(
           '-c, --wrangler-config <path>',
           'Wrangler config file (defaults if present)'

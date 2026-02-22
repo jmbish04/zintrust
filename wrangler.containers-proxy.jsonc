@@ -24,7 +24,7 @@
  */
 
 {
-  "name": "zintrust-containers-proxy",
+  "name": "zintrust-proxy",
   "main": "./packages/cloudflare-containers-proxy/src/index.ts",
 
   "compatibility_date": "2025-04-21",
@@ -38,20 +38,36 @@
   // --------------------------------------------------------------------------
   // One DO class per proxy (Option A).
   "containers": [
-    { "class_name": "ZintrustMySqlProxyContainer", "image": "./Dockerfile", "max_instances": 10 },
+    {
+      "class_name": "ZintrustMySqlProxyContainer",
+      "image": "docker.io/zintrust/zintrust:latest",
+      "max_instances": 10,
+    },
     {
       "class_name": "ZintrustPostgresProxyContainer",
-      "image": "./Dockerfile",
+      "image": "docker.io/zintrust/zintrust:latest",
       "max_instances": 10,
     },
-    { "class_name": "ZintrustRedisProxyContainer", "image": "./Dockerfile", "max_instances": 10 },
-    { "class_name": "ZintrustMongoDbProxyContainer", "image": "./Dockerfile", "max_instances": 10 },
+    {
+      "class_name": "ZintrustRedisProxyContainer",
+      "image": "docker.io/zintrust/zintrust:latest",
+      "max_instances": 10,
+    },
+    {
+      "class_name": "ZintrustMongoDbProxyContainer",
+      "image": "docker.io/zintrust/zintrust:latest",
+      "max_instances": 10,
+    },
     {
       "class_name": "ZintrustSqlServerProxyContainer",
-      "image": "./Dockerfile",
+      "image": "docker.io/zintrust/zintrust:latest",
       "max_instances": 10,
     },
-    { "class_name": "ZintrustSmtpProxyContainer", "image": "./Dockerfile", "max_instances": 10 },
+    {
+      "class_name": "ZintrustSmtpProxyContainer",
+      "image": "docker.io/zintrust/zintrust:latest",
+      "max_instances": 10,
+    },
   ],
 
   // Durable Object bindings (required to talk to containers)
@@ -86,24 +102,145 @@
   // --------------------------------------------------------------------------
   "env": {
     "staging": {
-      "name": "zintrust-containers-proxy-staging",
+      "name": "zintrust-proxy-staging",
       "minify": false,
       "vars": {
         "ENVIRONMENT": "staging",
         "APP_NAME": "ZinTrust",
         "CSRF_SKIP_PATHS": "/api/*,/queue-monitor/*",
       },
+
+      // NOTE: Wrangler's env selection does not reliably inherit container/DO
+      // bindings from the top-level config for JSONC configs.
+      // Keep these duplicated so `wrangler dev --env staging` works.
+      "containers": [
+        {
+          "class_name": "ZintrustMySqlProxyContainer",
+          "image": "docker.io/zintrust/zintrust:latest",
+          "max_instances": 10,
+        },
+        {
+          "class_name": "ZintrustPostgresProxyContainer",
+          "image": "docker.io/zintrust/zintrust:latest",
+          "max_instances": 10,
+        },
+        {
+          "class_name": "ZintrustRedisProxyContainer",
+          "image": "docker.io/zintrust/zintrust:latest",
+          "max_instances": 10,
+        },
+        {
+          "class_name": "ZintrustMongoDbProxyContainer",
+          "image": "docker.io/zintrust/zintrust:latest",
+          "max_instances": 10,
+        },
+        {
+          "class_name": "ZintrustSqlServerProxyContainer",
+          "image": "docker.io/zintrust/zintrust:latest",
+          "max_instances": 10,
+        },
+        {
+          "class_name": "ZintrustSmtpProxyContainer",
+          "image": "docker.io/zintrust/zintrust:latest",
+          "max_instances": 10,
+        },
+      ],
+
+      "durable_objects": {
+        "bindings": [
+          { "name": "ZT_PROXY_MYSQL", "class_name": "ZintrustMySqlProxyContainer" },
+          { "name": "ZT_PROXY_POSTGRES", "class_name": "ZintrustPostgresProxyContainer" },
+          { "name": "ZT_PROXY_REDIS", "class_name": "ZintrustRedisProxyContainer" },
+          { "name": "ZT_PROXY_MONGODB", "class_name": "ZintrustMongoDbProxyContainer" },
+          { "name": "ZT_PROXY_SQLSERVER", "class_name": "ZintrustSqlServerProxyContainer" },
+          { "name": "ZT_PROXY_SMTP", "class_name": "ZintrustSmtpProxyContainer" },
+        ],
+      },
+
+      "migrations": [
+        {
+          "tag": "containers-proxy-v1",
+          "new_sqlite_classes": [
+            "ZintrustMySqlProxyContainer",
+            "ZintrustPostgresProxyContainer",
+            "ZintrustRedisProxyContainer",
+            "ZintrustMongoDbProxyContainer",
+            "ZintrustSqlServerProxyContainer",
+            "ZintrustSmtpProxyContainer",
+          ],
+        },
+      ],
       // Add routes here when ready:
       // "routes": [{ "pattern": "proxy-staging.zintrust.com", "custom_domain": true }]
     },
     "production": {
-      "name": "zintrust-containers-proxy-production",
+      "name": "zintrust-proxy",
       "minify": true,
       "vars": {
         "ENVIRONMENT": "production",
         "APP_NAME": "ZinTrust",
         "CSRF_SKIP_PATHS": "/api/*,/queue-monitor/*",
       },
+
+      // Keep these duplicated so `wrangler dev/deploy --env production` has
+      // the same container/DO bindings as the top-level config.
+      "containers": [
+        {
+          "class_name": "ZintrustMySqlProxyContainer",
+          "image": "docker.io/zintrust/zintrust:latest",
+          "max_instances": 10,
+        },
+        {
+          "class_name": "ZintrustPostgresProxyContainer",
+          "image": "docker.io/zintrust/zintrust:latest",
+          "max_instances": 10,
+        },
+        {
+          "class_name": "ZintrustRedisProxyContainer",
+          "image": "docker.io/zintrust/zintrust:latest",
+          "max_instances": 10,
+        },
+        {
+          "class_name": "ZintrustMongoDbProxyContainer",
+          "image": "docker.io/zintrust/zintrust:latest",
+          "max_instances": 10,
+        },
+        {
+          "class_name": "ZintrustSqlServerProxyContainer",
+          "image": "docker.io/zintrust/zintrust:latest",
+          "max_instances": 10,
+        },
+        {
+          "class_name": "ZintrustSmtpProxyContainer",
+          "image": "docker.io/zintrust/zintrust:latest",
+          "max_instances": 10,
+        },
+      ],
+
+      "durable_objects": {
+        "bindings": [
+          { "name": "ZT_PROXY_MYSQL", "class_name": "ZintrustMySqlProxyContainer" },
+          { "name": "ZT_PROXY_POSTGRES", "class_name": "ZintrustPostgresProxyContainer" },
+          { "name": "ZT_PROXY_REDIS", "class_name": "ZintrustRedisProxyContainer" },
+          { "name": "ZT_PROXY_MONGODB", "class_name": "ZintrustMongoDbProxyContainer" },
+          { "name": "ZT_PROXY_SQLSERVER", "class_name": "ZintrustSqlServerProxyContainer" },
+          { "name": "ZT_PROXY_SMTP", "class_name": "ZintrustSmtpProxyContainer" },
+        ],
+      },
+
+      "migrations": [
+        {
+          "tag": "containers-proxy-v1",
+          "new_sqlite_classes": [
+            "ZintrustMySqlProxyContainer",
+            "ZintrustPostgresProxyContainer",
+            "ZintrustRedisProxyContainer",
+            "ZintrustMongoDbProxyContainer",
+            "ZintrustSqlServerProxyContainer",
+            "ZintrustSmtpProxyContainer",
+          ],
+        },
+      ],
       // Add routes here when ready:
       // "routes": [{ "pattern": "proxy.zintrust.com", "custom_domain": true }]
     },

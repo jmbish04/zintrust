@@ -22,6 +22,7 @@ import { DeployContainerProxiesCommand } from '@cli/commands/DeployContainerProx
 import { DeployContainersProxyCommand } from '@cli/commands/DeployContainersProxyCommand';
 import { DeployContainerWorkersCommand } from '@cli/commands/DeployContainerWorkersCommand';
 import { DockerCommand } from '@cli/commands/DockerCommand';
+import { DockerPushCommand } from '@cli/commands/DockerPushCommand';
 import { DoctorArchitectureCommand } from '@cli/commands/DoctorArchitectureCommand';
 import { FixCommand } from '@cli/commands/FixCommand';
 import { InitContainerCommand } from '@cli/commands/InitContainerCommand';
@@ -108,6 +109,7 @@ const buildCommandRegistry = (): Array<Command | CommandProvider> => {
     AddMigrationCommand.create(),
     StartCommand.create(),
     DockerCommand.create(),
+    DockerPushCommand.create(),
     QueueCommand.create(),
     QueueRecoveryCommand.create(),
     ScheduleListCommand.create(),

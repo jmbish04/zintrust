@@ -1,0 +1,173 @@
+/**
+ * =========================================================================
+ * ZinTrust Cloudflare Containers Proxy (local dev)
+ * =========================================================================
+ * This config is optimised for local development:
+ * - Uses the prebuilt Docker Hub image as the container base so `wrangler dev`
+ *   does NOT require a local build on every startup.
+ * - Wrangler's buildx step pulls the image automatically on first run.
+ * - Refresh the Hub image when you want to pick up the latest release:
+ *     npm run dev:cp -- --pull
+ *
+ * Base image (both amd64 + arm64 on Hub):
+ *   docker.io/zintrust/zintrust:latest
+ *
+ * Thin wrapper Dockerfile location:
+ *   docker/containers-proxy-dev/Dockerfile
+ * =========================================================================
+ */
+
+{
+  "name": "zintrust-proxy",
+  "main": "./packages/cloudflare-containers-proxy/src/index.ts",
+
+  "compatibility_date": "2025-04-21",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "workers_dev": true,
+  "minify": false,
+
+  // --------------------------------------------------------------------------
+  // CONTAINERS
+  // --------------------------------------------------------------------------
+  // Wrangler requires a Dockerfile path (not a bare image tag) for the `image`
+  // field. The wrapper Dockerfile at docker/containers-proxy-dev/Dockerfile does
+  // a single `FROM docker.io/zintrust/zintrust:latest`, so Wrangler's
+  // buildx step pulls the Hub image automatically.
+  //
+  // To refresh the Hub image before starting:
+  //   npm run dev:cp -- --pull
+  "containers": [
+    {
+      "class_name": "ZintrustMySqlProxyContainer",
+      "image": "./docker/containers-proxy-dev/Dockerfile",
+      "max_instances": 10,
+    },
+    {
+      "class_name": "ZintrustPostgresProxyContainer",
+      "image": "./docker/containers-proxy-dev/Dockerfile",
+      "max_instances": 10,
+    },
+    {
+      "class_name": "ZintrustRedisProxyContainer",
+      "image": "./docker/containers-proxy-dev/Dockerfile",
+      "max_instances": 10,
+    },
+    {
+      "class_name": "ZintrustMongoDbProxyContainer",
+      "image": "./docker/containers-proxy-dev/Dockerfile",
+      "max_instances": 10,
+    },
+    {
+      "class_name": "ZintrustSqlServerProxyContainer",
+      "image": "./docker/containers-proxy-dev/Dockerfile",
+      "max_instances": 10,
+    },
+    {
+      "class_name": "ZintrustSmtpProxyContainer",
+      "image": "./docker/containers-proxy-dev/Dockerfile",
+      "max_instances": 10,
+    },
+  ],
+
+  "durable_objects": {
+    "bindings": [
+      { "name": "ZT_PROXY_MYSQL", "class_name": "ZintrustMySqlProxyContainer" },
+      { "name": "ZT_PROXY_POSTGRES", "class_name": "ZintrustPostgresProxyContainer" },
+      { "name": "ZT_PROXY_REDIS", "class_name": "ZintrustRedisProxyContainer" },
+      { "name": "ZT_PROXY_MONGODB", "class_name": "ZintrustMongoDbProxyContainer" },
+      { "name": "ZT_PROXY_SQLSERVER", "class_name": "ZintrustSqlServerProxyContainer" },
+      { "name": "ZT_PROXY_SMTP", "class_name": "ZintrustSmtpProxyContainer" },
+    ],
+  },
+
+  "migrations": [
+    {
+      "tag": "containers-proxy-v1",
+      "new_sqlite_classes": [
+        "ZintrustMySqlProxyContainer",
+        "ZintrustPostgresProxyContainer",
+        "ZintrustRedisProxyContainer",
+        "ZintrustMongoDbProxyContainer",
+        "ZintrustSqlServerProxyContainer",
+        "ZintrustSmtpProxyContainer",
+      ],
+    },
+  ],
+
+  // --------------------------------------------------------------------------
+  // ENVIRONMENTS
+  // --------------------------------------------------------------------------
+  "env": {
+    "staging": {
+      "name": "zintrust-proxy-dev",
+      "minify": false,
+      "vars": {
+        "ENVIRONMENT": "staging",
+        "APP_NAME": "ZinTrust",
+        "CSRF_SKIP_PATHS": "/api/*,/queue-monitor/*",
+      },
+
+      // Wrangler env selection does not reliably inherit container/DO bindings
+      // from the top-level config for JSONC configs. Keep these duplicated so
+      // `wrangler dev --env staging` works.
+      "containers": [
+        {
+          "class_name": "ZintrustMySqlProxyContainer",
+          "image": "./docker/containers-proxy-dev/Dockerfile",
+          "max_instances": 10,
+        },
+        {
+          "class_name": "ZintrustPostgresProxyContainer",
+          "image": "./docker/containers-proxy-dev/Dockerfile",
+          "max_instances": 10,
+        },
+        {
+          "class_name": "ZintrustRedisProxyContainer",
+          "image": "./docker/containers-proxy-dev/Dockerfile",
+          "max_instances": 10,
+        },
+        {
+          "class_name": "ZintrustMongoDbProxyContainer",
+          "image": "./docker/containers-proxy-dev/Dockerfile",
+          "max_instances": 10,
+        },
+        {
+          "class_name": "ZintrustSqlServerProxyContainer",
+          "image": "./docker/containers-proxy-dev/Dockerfile",
+          "max_instances": 10,
+        },
+        {
+          "class_name": "ZintrustSmtpProxyContainer",
+          "image": "./docker/containers-proxy-dev/Dockerfile",
+          "max_instances": 10,
+        },
+      ],
+
+      "durable_objects": {
+        "bindings": [
+          { "name": "ZT_PROXY_MYSQL", "class_name": "ZintrustMySqlProxyContainer" },
+          { "name": "ZT_PROXY_POSTGRES", "class_name": "ZintrustPostgresProxyContainer" },
+          { "name": "ZT_PROXY_REDIS", "class_name": "ZintrustRedisProxyContainer" },
+          { "name": "ZT_PROXY_MONGODB", "class_name": "ZintrustMongoDbProxyContainer" },
+          { "name": "ZT_PROXY_SQLSERVER", "class_name": "ZintrustSqlServerProxyContainer" },
+          { "name": "ZT_PROXY_SMTP", "class_name": "ZintrustSmtpProxyContainer" },
+        ],
+      },
+
+      "migrations": [
+        {
+          "tag": "containers-proxy-v1",
+          "new_sqlite_classes": [
+            "ZintrustMySqlProxyContainer",
+            "ZintrustPostgresProxyContainer",
+            "ZintrustRedisProxyContainer",
+            "ZintrustMongoDbProxyContainer",
+            "ZintrustSqlServerProxyContainer",
+            "ZintrustSmtpProxyContainer",
+          ],
+        },
+      ],
+    },
+  },
+}

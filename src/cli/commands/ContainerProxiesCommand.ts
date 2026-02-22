@@ -1,11 +1,7 @@
 import type { CommandOptions, IBaseCommand } from '@cli/BaseCommand';
 import { BaseCommand } from '@cli/BaseCommand';
-import {
-  resolveComposePath,
-  runComposeWithFallback,
-} from '@cli/commands/DockerComposeCommandUtils';
-import { Logger } from '@config/logger';
-import { ErrorFactory } from '@exceptions/ZintrustError';
+import { ContainerComposeLifecycle } from '@cli/commands/ContainerComposeLifecycle';
+import { resolveComposePath } from '@cli/commands/DockerComposeCommandUtils';
 import type { Command } from 'commander';
 
 type ContainerProxiesAction = 'build' | 'up' | 'down';
@@ -19,55 +15,12 @@ type ContainerProxiesOptions = CommandOptions & {
   volumes?: boolean;
 };
 
-const runBuild = async (composePath: string, options: ContainerProxiesOptions): Promise<void> => {
-  const args = ['compose', '-f', composePath, 'build'];
-
-  if (options.noCache === true) {
-    args.push('--no-cache');
-  }
-
-  if (options.pull === true) {
-    args.push('--pull');
-  }
-
-  Logger.info('Building proxy stack image...');
-  await runComposeWithFallback(args);
-};
-
-const runUp = async (composePath: string, options: ContainerProxiesOptions): Promise<void> => {
-  const args = ['compose', '-f', composePath, 'up'];
-
-  if (options.detach === true) {
-    args.push('-d');
-  }
-
-  if (options.removeOrphans === true) {
-    args.push('--remove-orphans');
-  }
-
-  Logger.info('Starting proxy stack...');
-  await runComposeWithFallback(args);
-};
-
-const runDown = async (composePath: string, options: ContainerProxiesOptions): Promise<void> => {
-  const args = ['compose', '-f', composePath, 'down'];
-
-  if (options.removeOrphans === true) {
-    args.push('--remove-orphans');
-  }
-
-  if (options.volumes === true) {
-    args.push('--volumes');
-  }
-
-  Logger.info('Stopping proxy stack...');
-  await runComposeWithFallback(args);
-};
-
 const normalizeAction = (raw?: string): ContainerProxiesAction => {
-  const value = (raw ?? '').trim().toLowerCase();
-  if (value === 'build' || value === 'up' || value === 'down') return value;
-  throw ErrorFactory.createCliError('Usage: zin cp <build|up|down> [options]');
+  return ContainerComposeLifecycle.normalizeAction(
+    raw,
+    ['build', 'up', 'down'] as const,
+    'Usage: zin cp <build|up|down> [options]'
+  );
 };
 
 export const ContainerProxiesCommand = Object.freeze({
@@ -87,26 +40,35 @@ export const ContainerProxiesCommand = Object.freeze({
       },
       execute: async (options: ContainerProxiesOptions): Promise<void> => {
         const action = normalizeAction(options.args?.[0]);
+
         const composePath = resolveComposePath(
           'docker-compose.proxy.yml',
           'docker-compose.proxy.yml not found.'
         );
 
         if (action === 'build') {
-          await runBuild(composePath, options);
+          await ContainerComposeLifecycle.runBuild(
+            composePath,
+            options,
+            'Building proxy stack image...'
+          );
           return;
         }
 
         if (action === 'down') {
-          await runDown(composePath, options);
+          await ContainerComposeLifecycle.runDown(composePath, options, 'Stopping proxy stack...');
           return;
         }
 
         if (options.build === true) {
-          await runBuild(composePath, options);
+          await ContainerComposeLifecycle.runBuild(
+            composePath,
+            options,
+            'Building proxy stack image...'
+          );
         }
 
-        await runUp(composePath, options);
+        await ContainerComposeLifecycle.runUp(composePath, options, 'Starting proxy stack...');
       },
     });
   },

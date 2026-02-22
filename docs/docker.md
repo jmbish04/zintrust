@@ -30,6 +30,19 @@ zin deploy cw
 zin deploy:cw
 ```
 
+Publish workers/schedules images (maintainers / Docker Hub access required):
+
+```bash
+zin docker push --tag <version>
+```
+
+Use the prebuilt images in Compose (skip local builds):
+
+```bash
+ZINTRUST_IMAGE=zintrust/zintrust:<version> docker compose -f docker-compose.workers.yml up -d
+ZINTRUST_IMAGE=zintrust/zintrust:<version> docker compose -f docker-compose.schedules.yml up -d
+```
+
 Compatibility aliases still work:
 
 ```bash
@@ -67,7 +80,19 @@ zin cp up -d
 zin cp down
 ```
 
+Publish proxy images (maintainers / Docker Hub access required):
+
+```bash
+zin docker push --tag <version>
+```
+
 Compose target file: `docker-compose.proxy.yml`.
+
+### Prebuilt images (Docker Hub)
+
+If you prefer not to build proxy images locally, use the prebuilt Docker Hub images:
+
+- See `docs/docker-hub-proxies.md`
 
 ## Cloudflare Containers Proxy Worker (ccp)
 
@@ -95,6 +120,12 @@ zin docker -c wrangler.containers-proxy.jsonc -e staging
 
 # short alias
 zin dk -e staging
+```
+
+Tip: Wrangler creates many `cloudflare-dev/*` image tags during local dev. To clean up unused old tags before starting the dev server:
+
+```bash
+npm run dev:cp:clean
 ```
 
 The gateway routes by path prefix (mirrors the Compose gateway paths):

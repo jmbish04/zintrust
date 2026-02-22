@@ -121,6 +121,10 @@ const handleFileUpload = (
     ctx.rejectOnce(new Error('File too large'));
   });
 
+  fileStream.on('error', (err) => {
+    ctx.rejectOnce(err);
+  });
+
   writeStream.on('error', (err) => {
     ctx.rejectOnce(err);
   });

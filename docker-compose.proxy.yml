@@ -1,7 +1,13 @@
 name: zintrust-proxies
 
 x-proxy-runtime: &proxy-runtime
-  image: ${PROXY_IMAGE:-zintrust-proxy:local}
+  # Prebuilt image reference (Docker Hub default). Override if you use a different org/tag.
+  #   ZINTRUST_IMAGE=zintrust/zintrust:latest
+  image: ${ZINTRUST_IMAGE:-zintrust/zintrust:latest}
+  build:
+    context: .
+    dockerfile: Dockerfile
+  pull_policy: ${PROXY_PULL_POLICY:-if_not_present}
   restart: on-failure:3
   ulimits:
     nofile:
@@ -17,10 +23,11 @@ x-proxy-runtime: &proxy-runtime
 
 services:
   proxy-gateway:
-    image: ${PROXY_GATEWAY_IMAGE:-zintrust-proxy-gateway:local}
+    image: ${PROXY_GATEWAY_IMAGE:-zintrust/zintrust-proxy-gateway:latest}
     build:
       context: ./docker/proxy-gateway
       dockerfile: Dockerfile
+    pull_policy: ${PROXY_PULL_POLICY:-if_not_present}
     restart: on-failure:3
     ulimits:
       nofile:
@@ -50,10 +57,6 @@ services:
 
   proxy-mysql:
     <<: *proxy-runtime
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: runtime
     command: ['node', 'dist/bin/zin.js', 'proxy:mysql', '--host', '0.0.0.0', '--port', '8789']
     expose:
       - '8789'
