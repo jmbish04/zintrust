@@ -46,3 +46,5 @@ export interface IUserController {
   update(req: IRequest, res: IResponse): Promise<void>;
   destroy(req: IRequest, res: IResponse): Promise<void>;
 }
+
+export const __controllerTypesRuntime = 1;
