@@ -136,7 +136,7 @@ function registerApiV1Routes(
       async (__req: IRequest, res: IResponse) => {
         res.json({ message: 'Get user profile' });
       },
-      { middleware: ['auth', 'jwt'] }
+      { middleware: ['auth', 'bulletproof'] }
     );
 
     Router.put<MiddlewareKey>(
@@ -145,7 +145,7 @@ function registerApiV1Routes(
       async (__req: IRequest, res: IResponse) => {
         res.json({ message: 'Update user profile' });
       },
-      { middleware: ['auth', 'jwt'] }
+      { middleware: ['auth', 'bulletproof'] }
     );
 
     // Posts resource

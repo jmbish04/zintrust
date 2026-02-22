@@ -4,6 +4,7 @@
  */
 
 import { Auth } from '@/auth/Auth';
+import { isUndefinedOrNull } from '@/helper';
 import { User } from '@app/Models/User';
 import type { AuthControllerApi, JsonRecord, UserRow } from '@app/Types/controller';
 import { getString } from '@common/utility';
@@ -76,9 +77,15 @@ async function login(req: IRequest, res: IResponse): Promise<void> {
       return undefined;
     })();
 
+    // Bulletproof Auth (device binding) expects a device id header to match a JWT claim.
+    // For the example app, we mint a stable device id derived from the subject.
+    // Production apps should issue a per-device id and manage a per-device signing secret.
+    const deviceId = isUndefinedOrNull(subject) ? undefined : `dev-${subject}`;
+
     const token = JwtManager.signAccessToken({
       sub: subject,
       email,
+      ...(isUndefinedOrNull(deviceId) ? {} : { deviceId }),
     });
 
     Logger.info('AuthController.login: successful login', {
@@ -91,6 +98,7 @@ async function login(req: IRequest, res: IResponse): Promise<void> {
     res.json({
       token,
       token_type: 'Bearer',
+      ...(isUndefinedOrNull(deviceId) ? {} : { deviceId }),
       user,
     });
   } catch (error) {
