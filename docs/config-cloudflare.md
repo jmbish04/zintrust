@@ -71,23 +71,6 @@ const isCloudflareSocketsEnabled = (): boolean => {
   return normalized === 'true' || normalized === '1';
 };
 
-const getWorkersVar = (key: string): string | null => {
-  const env = getWorkersEnv();
-  if (env === null) return null;
-  const value = env[key];
-  if (value === undefined || value === null) return null;
-  if (typeof value === 'string') return value;
-  return String(value);
-};
-
-const isCloudflareSocketsEnabled = (): boolean => {
-  const raw = getWorkersVar('ENABLE_CLOUDFLARE_SOCKETS');
-  if (raw === null) return false;
-  const normalized = raw.trim().toLowerCase();
-  if (normalized === '') return false;
-  return normalized === 'true' || normalized === '1';
-};
-
 export const Cloudflare = Object.freeze({
   getWorkersEnv,
   getD1Binding,
