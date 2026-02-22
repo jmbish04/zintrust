@@ -3,7 +3,6 @@
  * SQL Server Proxy Adapter (HTTP)
  */
 
-import { Env } from '@config/env';
 import { ErrorFactory } from '@exceptions/ZintrustError';
 import { AdaptersEnum, type SupportedDriver } from '@migrations/enum';
 import type { IDatabaseAdapter, QueryResult } from '@orm/DatabaseAdapter';
@@ -11,14 +10,13 @@ import { QueryBuilder } from '@orm/QueryBuilder';
 import {
   ensureSignedSettings,
   isRecord,
-  requestSignedProxy,
   type ProxySettings,
   type SignedProxyConfig,
 } from '@orm/adapters/SqlProxyAdapterUtils';
+import { SqlProxyHttpAdapterShared, type ProxyMode } from '@orm/adapters/SqlProxyHttpAdapterShared';
 import {
   createStatementPayload,
   getExecMetaWithLastRowId,
-  resolveSqlProxyMode,
 } from '@orm/adapters/SqlProxyRegistryMode';
 
 type ProxyQueryResponse = {
@@ -37,43 +35,33 @@ type ProxyExecResponse = {
 
 type ProxyStatementResponse = ProxyQueryResponse | ProxyQueryOneResponse | ProxyExecResponse;
 
-type ProxyMode = 'sql' | 'registry';
-
 const resolveProxyMode = (): ProxyMode => {
-  return resolveSqlProxyMode('SQLSERVER_PROXY_MODE');
-};
-
-const resolveBaseUrl = (): string => {
-  const explicit = Env.get('SQLSERVER_PROXY_URL', '').trim();
-  if (explicit !== '') return explicit;
-  const host = Env.get('SQLSERVER_PROXY_HOST', '127.0.0.1');
-  const port = Env.getInt('SQLSERVER_PROXY_PORT', 8793);
-  return `http://${host}:${port}`;
+  return SqlProxyHttpAdapterShared.resolveProxyModeFromEnv('SQLSERVER_PROXY_MODE');
 };
 
 const buildProxySettings = (): ProxySettings => {
-  const baseUrl = resolveBaseUrl();
-  const keyId = Env.get('SQLSERVER_PROXY_KEY_ID', '');
-  const secret = Env.get('SQLSERVER_PROXY_SECRET', '');
-  const timeoutMs = Env.getInt('SQLSERVER_PROXY_TIMEOUT_MS', Env.ZT_PROXY_TIMEOUT_MS ?? 30000);
-
-  return { baseUrl, keyId, secret, timeoutMs };
+  return SqlProxyHttpAdapterShared.buildProxySettingsFromEnv({
+    urlKey: 'SQLSERVER_PROXY_URL',
+    hostKey: 'SQLSERVER_PROXY_HOST',
+    portKey: 'SQLSERVER_PROXY_PORT',
+    defaultHost: '127.0.0.1',
+    defaultPort: 8793,
+    keyIdKey: 'SQLSERVER_PROXY_KEY_ID',
+    secretKey: 'SQLSERVER_PROXY_SECRET',
+    timeoutKey: 'SQLSERVER_PROXY_TIMEOUT_MS',
+    sharedTimeoutKey: 'ZT_PROXY_TIMEOUT_MS',
+  });
 };
 
-const buildSignedProxyConfig = (settings: ProxySettings): SignedProxyConfig => ({
-  settings,
-  missingUrlMessage: 'SQL Server proxy URL is missing (SQLSERVER_PROXY_URL)',
-  missingCredentialsMessage:
-    'SQL Server proxy signing credentials are missing (SQLSERVER_PROXY_KEY_ID / SQLSERVER_PROXY_SECRET)',
-  messages: {
-    unauthorized: 'SQL Server proxy unauthorized',
-    forbidden: 'SQL Server proxy forbidden',
-    rateLimited: 'SQL Server proxy rate limited',
-    rejected: 'SQL Server proxy rejected request',
-    error: 'SQL Server proxy error',
-    timedOut: 'SQL Server proxy request timed out',
-  },
-});
+const buildSignedProxyConfig = (settings: ProxySettings): SignedProxyConfig => {
+  return SqlProxyHttpAdapterShared.buildStandardSignedProxyConfig({
+    settings,
+    label: 'SQL Server',
+    urlKey: 'SQLSERVER_PROXY_URL',
+    keyIdKey: 'SQLSERVER_PROXY_KEY_ID',
+    secretKey: 'SQLSERVER_PROXY_SECRET',
+  });
+};
 
 const isQueryResponse = (value: unknown): value is ProxyQueryResponse =>
   isRecord(value) && Array.isArray(value['rows']) && typeof value['rowCount'] === 'number';
@@ -82,15 +70,16 @@ const isQueryOneResponse = (value: unknown): value is ProxyQueryOneResponse =>
   isRecord(value) && 'row' in value;
 
 const requestProxy = async <T>(
-  settings: ProxySettings,
+  signed: SignedProxyConfig,
   path: string,
   payload: Record<string, unknown>
-): Promise<T> => requestSignedProxy<T>(buildSignedProxyConfig(settings), path, payload);
+): Promise<T> => SqlProxyHttpAdapterShared.requestProxy<T>(signed, path, payload);
 
 type SqlServerProxyState = {
   connected: boolean;
   inTransaction: boolean;
   settings: ProxySettings;
+  signed: SignedProxyConfig;
 };
 
 const requireConnected = (state: SqlServerProxyState): void => {
@@ -120,11 +109,11 @@ const createQuery =
     const out =
       mode === 'registry'
         ? await requestProxy<ProxyStatementResponse>(
-            state.settings,
+            state.signed,
             '/zin/sqlserver/statement',
             await createStatementPayload(sql, parameters)
           )
-        : await requestProxy<ProxyStatementResponse>(state.settings, '/zin/sqlserver/query', {
+        : await requestProxy<ProxyStatementResponse>(state.signed, '/zin/sqlserver/query', {
             sql,
             params: parameters,
           });
@@ -140,7 +129,7 @@ const createQueryOne =
     const mode = resolveProxyMode();
     if (mode !== 'registry') {
       const out = await requestProxy<ProxyQueryOneResponse>(
-        state.settings,
+        state.signed,
         '/zin/sqlserver/queryOne',
         {
           sql,
@@ -151,7 +140,7 @@ const createQueryOne =
     }
 
     const out = await requestProxy<ProxyStatementResponse>(
-      state.settings,
+      state.signed,
       '/zin/sqlserver/statement',
       await createStatementPayload(sql, parameters)
     );
@@ -207,7 +196,7 @@ const createAdapter = (state: SqlServerProxyState): IDatabaseAdapter => {
 
   const adapter: IDatabaseAdapter = {
     async connect(): Promise<void> {
-      ensureSignedSettings(buildSignedProxyConfig(state.settings));
+      ensureSignedSettings(state.signed);
       state.connected = true;
     },
 
@@ -221,6 +210,35 @@ const createAdapter = (state: SqlServerProxyState): IDatabaseAdapter => {
     ping: createPing(query),
     transaction: createTransaction(state, () => adapter),
     rawQuery: createRawQuery(query),
+
+    async ensureMigrationsTable(): Promise<void> {
+      requireConnected(state);
+      try {
+        await query(
+          `IF OBJECT_ID(N'migrations', N'U') IS NULL
+BEGIN
+  CREATE TABLE migrations (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    name NVARCHAR(255) NOT NULL,
+    scope NVARCHAR(255) NOT NULL DEFAULT 'global',
+    service NVARCHAR(255) NOT NULL DEFAULT '',
+    batch INT NOT NULL,
+    status NVARCHAR(255) NOT NULL,
+    applied_at DATETIME2 NULL,
+    created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT UQ_migrations_name_scope_service UNIQUE (name, scope, service)
+  );
+END`,
+          []
+        );
+      } catch (error) {
+        throw SqlProxyHttpAdapterShared.createProxyNotReachableCliError(
+          'SQL Server proxy',
+          state.settings.baseUrl,
+          error
+        );
+      }
+    },
 
     getType(): SupportedDriver {
       return AdaptersEnum.sqlserver;
@@ -240,6 +258,7 @@ const createAdapter = (state: SqlServerProxyState): IDatabaseAdapter => {
 
 export function createSqlServerProxyAdapter(): IDatabaseAdapter {
   const settings = buildProxySettings();
-  const state: SqlServerProxyState = { connected: false, inTransaction: false, settings };
+  const signed = buildSignedProxyConfig(settings);
+  const state: SqlServerProxyState = { connected: false, inTransaction: false, settings, signed };
   return createAdapter(state);
 }
