@@ -1,6 +1,7 @@
 import { generateUuid } from '@/common/utility';
 import type { CommandOptions, IBaseCommand } from '@cli/BaseCommand';
 import { BaseCommand } from '@cli/BaseCommand';
+import { DockerPushCommand } from '@cli/commands/DockerPushCommand';
 import { SpawnUtil } from '@cli/utils/spawn';
 import { Logger } from '@config/logger';
 import { ErrorFactory } from '@exceptions/ZintrustError';
@@ -59,11 +60,12 @@ const resolveWranglerConfig = (cwd: string, options: DockerCommandOptions): stri
 };
 
 const isContainersProxyConfig = (config: string): boolean => {
+  const base = config.split(/[/\\]/).pop() ?? config;
   return (
-    config === 'wrangler.containers-proxy.jsonc' ||
-    config === 'wrangler.containers-proxy.json' ||
-    config === 'wrangler.containers-proxy.toml' ||
-    config.startsWith('wrangler.containers-proxy.')
+    base === 'wrangler.containers-proxy.jsonc' ||
+    base === 'wrangler.containers-proxy.json' ||
+    base === 'wrangler.containers-proxy.toml' ||
+    base.startsWith('wrangler.containers-proxy.')
   );
 };
 
@@ -163,6 +165,12 @@ export const DockerCommand = Object.freeze({
       aliases: ['dkr', 'dk'],
       description: 'Run Wrangler dev using a Docker-backed Cloudflare Containers config',
       addOptions: (command: Command): void => {
+        // `zin docker push` (subcommand) for Docker Hub publishing.
+        // Keep `zin docker` itself as the Wrangler dev command.
+        const pushCommand = DockerPushCommand.create().getCommand();
+        pushCommand.name('push');
+        command.addCommand(pushCommand);
+
         command.option(
           '-c, --wrangler-config <path>',
           'Wrangler config file (defaults if present)'

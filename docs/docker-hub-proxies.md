@@ -1,153 +1,160 @@
-# Docker Hub: Prebuilt Proxy Images
+# ZinTrust Docker Images
 
-ZinTrust publishes **prebuilt** Docker images for the proxy stack so developers can run the gateway + proxies **without building anything locally**.
+ZinTrust ships a **single monolith runtime image** used across app runtime, workers, schedules, and proxy services.
 
-This uses the Docker Compose stack defined in `docker-compose.proxy.yml`.
+The proxy stack also has a companion gateway image.
 
-## Images
+> **Companion image:** [`zintrust/zintrust-proxy-gateway`](https://hub.docker.com/r/zintrust/zintrust-proxy-gateway) — the Nginx-based gateway that routes and load-balances across all running proxy containers.
 
-- Proxy runtime image: `zintrust/zintrust-proxy`
-- Gateway image: `zintrust/zintrust-proxy-gateway`
+---
 
-Related (non-proxy) images published by maintainers:
+## What's inside
 
-- Container workers API image: `zintrust/zintrust-workers`
-- Schedules daemon image: `zintrust/zintrust-schedules`
+| Component  | Detail                        |
+| ---------- | ----------------------------- |
+| Base       | `node:20-bookworm-slim`       |
+| Entrypoint | `zin` CLI (`dist/bin/zin.js`) |
+| Arch       | `linux/amd64`, `linux/arm64`  |
 
-`docker-compose.proxy.yml` defaults to the `:latest` tags for both. You only need to set `PROXY_IMAGE` / `PROXY_GATEWAY_IMAGE` if you want to pin a different tag.
+Each proxy type is activated by passing a command to the runtime container:
+
+| Proxy      | Command           | Internal port |
+| ---------- | ----------------- | ------------- |
+| MySQL      | `proxy:mysql`     | `8789`        |
+| PostgreSQL | `proxy:postgres`  | `8790`        |
+| Redis      | `proxy:redis`     | `8791`        |
+| MongoDB    | `proxy:mongodb`   | `8792`        |
+| SQL Server | `proxy:sqlserver` | `8793`        |
+| SMTP       | `proxy:smtp`      | `8794`        |
+
+---
+
+## Key features
+
+- **Connection pooling** — each proxy manages a pool toward the real backing service, reducing per-request overhead.
+- **Request signing** — HMAC-based signing window prevents unauthenticated traffic from reaching your databases.
+- **Health endpoints** — every proxy exposes a `GET /health` endpoint used by Docker health checks and the gateway.
+- **Multi-runtime** — works with ZinTrust apps running in Node.js or Cloudflare Workers (via the gateway).
+- **Zero build step** — pull and run; no local compile needed.
+
+---
 
 ## Quick start
 
-### 1) Get the compose file
+The fastest way to run the full proxy stack is via the `docker-compose.proxy.yml` file included in the [ZinTrust repository](https://github.com/ZinTrust/zintrust).
 
-In a ZinTrust project repo, you already have `docker-compose.proxy.yml`.
+```bash
+# Pull the compose file
+curl -O https://raw.githubusercontent.com/ZinTrust/zintrust/master/docker-compose.proxy.yml
 
-If you’re using the proxies from another repo, copy `docker-compose.proxy.yml` into your project.
-
-### 2) Create a compose env file
-
-Create a file like `.env.proxy`:
-
-```dotenv
-# Required (used for signing defaults)
-APP_NAME=ZinTrust
+# Create a minimal env file
+cat > .env.proxy <<'EOF'
 APP_KEY=change-me-to-a-long-random-string
-
-# Optional: image pull policy
-PROXY_PULL_POLICY=if_not_present
-
-# Images (optional overrides; compose already defaults to these)
-# PROXY_IMAGE=zintrust/zintrust-proxy:latest
-# PROXY_GATEWAY_IMAGE=zintrust/zintrust-proxy-gateway:latest
-
-# Where the proxies should reach your databases from inside Docker
-# macOS/Windows: host.docker.internal works
-# Linux: use your host IP or the docker bridge gateway (often 172.17.0.1)
 DOCKER_DB_HOST=host.docker.internal
 DOCKER_REDIS_HOST=host.docker.internal
-
-# MySQL target DB (adjust to your setup)
-DB_PORT=3306
 DB_DATABASE=zintrust
 DB_USERNAME=root
 DB_PASSWORD=secret
+EOF
 
-# Postgres target DB (if you use it)
-POSTGRES_DB_PORT=5432
-POSTGRES_DB_DATABASE=postgres
-POSTGRES_DB_USERNAME=postgres
-POSTGRES_DB_PASSWORD=postgres
-
-# SQL Server target DB (if you use it)
-SQLSERVER_DB_HOST=host.docker.internal
-SQLSERVER_DB_PORT=1433
-SQLSERVER_DB_DATABASE=zintrust
-SQLSERVER_DB_USERNAME=sa
-SQLSERVER_DB_PASSWORD=secret
-
-# SMTP proxy needs real SMTP creds if you plan to send mail
-MAIL_HOST=smtp.example.com
-MAIL_PORT=587
-MAIL_USERNAME=
-MAIL_PASSWORD=
-MAIL_SECURE=false
-MAIL_FROM_ADDRESS=no-reply@example.com
-MAIL_FROM_NAME=ZinTrust
+# Start the stack
+docker compose -f docker-compose.proxy.yml --env-file .env.proxy up -d
 ```
 
-### 3) Start the stack
+The gateway will be available at **http://localhost:8800**.
+
+---
+
+## Environment variables
+
+### Shared (all proxies)
+
+| Variable   | Default       | Description             |
+| ---------- | ------------- | ----------------------- |
+| `NODE_ENV` | `development` | Runtime environment     |
+| `APP_NAME` | `ZinTrust`    | Application name        |
+| `APP_KEY`  | _(required)_  | Secret used for signing |
+
+### MySQL proxy
+
+| Variable                 | Default                | Description          |
+| ------------------------ | ---------------------- | -------------------- |
+| `MYSQL_DB_HOST`          | `host.docker.internal` | Target MySQL host    |
+| `MYSQL_DB_PORT`          | `3306`                 | Target MySQL port    |
+| `MYSQL_DB_DATABASE`      | `zintrust`             | Database name        |
+| `MYSQL_DB_USERNAME`      | `zintrust`             | Database user        |
+| `MYSQL_DB_PASSWORD`      | `secret`               | Database password    |
+| `MYSQL_PROXY_KEY_ID`     | —                      | Signing key ID       |
+| `MYSQL_PROXY_SECRET`     | —                      | Signing secret       |
+| `MYSQL_PROXY_POOL_LIMIT` | `100`                  | Max pool connections |
+
+### PostgreSQL proxy
+
+| Variable                    | Default                | Description          |
+| --------------------------- | ---------------------- | -------------------- |
+| `DB_HOST`                   | `host.docker.internal` | Target Postgres host |
+| `DB_PORT_POSTGRESQL`        | `5432`                 | Target Postgres port |
+| `DB_DATABASE_POSTGRESQL`    | `postgres`             | Database name        |
+| `DB_USERNAME_POSTGRESQL`    | `postgres`             | Database user        |
+| `DB_PASSWORD_POSTGRESQL`    | `postgres`             | Database password    |
+| `POSTGRES_PROXY_KEY_ID`     | —                      | Signing key ID       |
+| `POSTGRES_PROXY_SECRET`     | —                      | Signing secret       |
+| `POSTGRES_PROXY_POOL_LIMIT` | `100`                  | Max pool connections |
+
+### Redis proxy
+
+| Variable                      | Default                | Description       |
+| ----------------------------- | ---------------------- | ----------------- |
+| `REDIS_PROXY_TARGET_HOST`     | `host.docker.internal` | Target Redis host |
+| `REDIS_PROXY_TARGET_PORT`     | `6379`                 | Target Redis port |
+| `REDIS_PROXY_TARGET_PASSWORD` | —                      | Redis password    |
+| `REDIS_PROXY_TARGET_DB`       | `0`                    | Redis DB index    |
+| `REDIS_PROXY_KEY_ID`          | —                      | Signing key ID    |
+| `REDIS_PROXY_SECRET`          | —                      | Signing secret    |
+
+### SMTP proxy
+
+| Variable            | Default      | Description      |
+| ------------------- | ------------ | ---------------- |
+| `MAIL_HOST`         | _(required)_ | SMTP server host |
+| `MAIL_PORT`         | `587`        | SMTP port        |
+| `MAIL_SECURE`       | `false`      | Use TLS          |
+| `MAIL_USERNAME`     | _(required)_ | SMTP username    |
+| `MAIL_PASSWORD`     | _(required)_ | SMTP password    |
+| `SMTP_PROXY_KEY_ID` | —            | Signing key ID   |
+| `SMTP_PROXY_SECRET` | —            | Signing secret   |
+
+---
+
+## Image tags
+
+| Tag      | Notes                                       |
+| -------- | ------------------------------------------- |
+| `latest` | Latest stable release                       |
+| `x.y.z`  | Pinned release (recommended for production) |
+
+---
+
+## Publishing (maintainers)
+
+Use the ZinTrust CLI to build and push images to Docker Hub:
 
 ```bash
-docker compose --env-file .env.proxy -f docker-compose.proxy.yml up -d
+# Push runtime (zintrust/zintrust) + gateway (zintrust/zintrust-proxy-gateway)
+zin docker push --tag 1.2.0
+
+# Push only the runtime image
+zin docker push --tag 1.2.0 --only runtime
+
+# Push only the gateway image
+zin docker push --tag 1.2.0 --only gateway
 ```
 
-Gateway default port is `8800`.
+---
 
-### 4) Point your app at the gateway
+## Related
 
-In your app `.env`:
-
-```dotenv
-USE_MYSQL_PROXY=true
-MYSQL_PROXY_URL=http://127.0.0.1:8800/mysql
-
-USE_POSTGRES_PROXY=true
-POSTGRES_PROXY_URL=http://127.0.0.1:8800/postgres
-
-USE_REDIS_PROXY=true
-REDIS_PROXY_URL=http://127.0.0.1:8800/redis
-
-USE_SQLSERVER_PROXY=true
-SQLSERVER_PROXY_URL=http://127.0.0.1:8800/sqlserver
-
-USE_SMTP_PROXY=true
-SMTP_PROXY_URL=http://127.0.0.1:8800/smtp
-```
-
-## Signing: minimum required
-
-By default, the proxy services require request signing.
-
-If you don’t set `*_PROXY_KEY_ID` and `*_PROXY_SECRET`, they fall back to:
-
-- key id = `APP_NAME`
-- secret = `APP_KEY`
-
-So for local/dev, the minimum is: set a non-empty `APP_KEY`.
-
-## Publishing images (maintainers)
-
-If you have access to the Docker Hub repos under the `zintrust` org, you can publish via the CLI (buildx multi-arch):
-
-```bash
-# runtime image only
-zin cp publish-proxy --tag 0.1.46
-
-# gateway image only
-zin cp publish-gateway --tag 0.1.46
-
-# both images
-zin cp publish-images --tag 0.1.46
-```
-
-Common options:
-
-- `--platforms linux/amd64,linux/arm64`
-- `--no-also-latest`
-
-## Troubleshooting
-
-- **pull access denied for `zintrust/zintrust-proxy`**: the image isn’t published yet, the repo is private, or you’re not logged in.
-  - If it’s public: run `docker login` (sometimes still required due to rate limits) and retry.
-  - If it’s private/unpublished: build locally and override `PROXY_IMAGE` / `PROXY_GATEWAY_IMAGE`.
-
-- **Proxy health is UNHEALTHY / connection refused**: your DB host is wrong _from inside Docker_.
-  - macOS/Windows: use `host.docker.internal`
-  - Linux: use your host IP or `172.17.0.1` (varies by setup)
-
-- **Disable healthchecks** (rarely needed):
-
-```dotenv
-PROXY_HEALTHCHECK_DISABLE=true
-PROXY_GATEWAY_HEALTHCHECK_DISABLE=true
-```
+- [zintrust/zintrust-proxy-gateway](https://hub.docker.com/r/zintrust/zintrust-proxy-gateway) — Nginx gateway image
+- [ZinTrust on GitHub](https://github.com/ZinTrust/zintrust)
+- [Docker Workers](https://zintrust.com/docker-workers)
+- [Docker Proxies](https://zintrust.com/docker-proxies)

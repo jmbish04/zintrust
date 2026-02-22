@@ -103,17 +103,17 @@ zin cp up -d
 zin cp down
 ```
 
-Publishing proxy images (maintainers / requires Docker Hub access):
+Publishing Docker images (maintainers / requires Docker Hub access):
 
 ```bash
-# runtime image only
-zin cp publish-proxy --tag 0.1.46
+# runtime image (zintrust/zintrust) + gateway image (zintrust/zintrust-proxy-gateway)
+zin docker push --tag <version>
 
-# gateway image only
-zin cp publish-gateway --tag 0.1.46
+# only the gateway image
+zin docker push --tag <version> --only gateway
 
-# both images
-zin cp publish-images --tag 0.1.46
+# only the runtime image
+zin docker push --tag <version> --only runtime
 ```
 
 Cloud deploy targets continue to work with `zin deploy <target>`:
@@ -121,21 +121,6 @@ Cloud deploy targets continue to work with `zin deploy <target>`:
 ```bash
 zin deploy worker
 zin deploy production
-```
-
-### Container Workers + Schedules Images (Docker Hub)
-
-Publishing workers/schedules images (maintainers / requires Docker Hub access):
-
-```bash
-# both images
-zin cw publish-images --tag 0.1.46
-
-# workers API only
-zin cw publish-workers --tag 0.1.46
-
-# schedules only
-zin cw publish-schedules --tag 0.1.46
 ```
 
 ### Create New Project

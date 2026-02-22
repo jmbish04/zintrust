@@ -81,16 +81,14 @@ zin deploy:ccp -e staging
 
 Publish (Docker Hub, requires repo/org access):
 
-- `zin cw publish-images`: Publish both images (workers API + schedules) via Docker buildx
-- `zin cw publish-workers`: Publish only the workers image (`zintrust/zintrust-workers`)
-- `zin cw publish-schedules`: Publish only the schedules image (`zintrust/zintrust-schedules`)
+- `zin docker push`: Build and push Docker images via Docker buildx
 
-Common publish options:
+Options:
 
-- `--tag <tag>`: Tag to publish (default: `latest`)
 - `--tag <tag>`: Tag to publish (default: current version; also pushes `:latest`)
 - `--platforms <list>`: Comma list for buildx (default: `linux/amd64,linux/arm64`)
 - `--no-also-latest`: If `--tag` is not `latest`, do not also push `:latest`
+- `--only <target>`: `runtime` | `gateway` | `both` (default: `both`)
 
 ## Container Proxies Commands
 
@@ -102,16 +100,14 @@ Common publish options:
 
 Publish (Docker Hub, requires repo/org access):
 
-- `zin cp publish-images`: Publish proxy images via Docker buildx (runtime + gateway)
-- `zin cp publish-proxy`: Publish only the runtime image (`zintrust/zintrust-proxy`)
-- `zin cp publish-gateway`: Publish only the gateway image (`zintrust/zintrust-proxy-gateway`)
+- `zin docker push`: Build and push Docker images via Docker buildx
 
-Common publish options:
+Options:
 
-- `--tag <tag>`: Tag to publish (default: `latest`)
 - `--tag <tag>`: Tag to publish (default: current version; also pushes `:latest`)
 - `--platforms <list>`: Comma list for buildx (default: `linux/amd64,linux/arm64`)
 - `--no-also-latest`: If `--tag` is not `latest`, do not also push `:latest`
+- `--only <target>`: `runtime` | `gateway` | `both` (default: `both`)
 
 ## Routes Command
 

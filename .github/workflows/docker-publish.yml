@@ -1,5 +1,5 @@
 # Docker Image Publication
-# Builds and pushes the ZinTrust image to GitHub Container Registry (GHCR)
+# Builds and pushes ZinTrust images to Docker Hub (primary) and GHCR.
 
 name: Publish Docker Image
 
@@ -15,6 +15,9 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  DOCKERHUB_REGISTRY: docker.io
+  DOCKERHUB_RUNTIME_IMAGE: zintrust/zintrust
+  DOCKERHUB_GATEWAY_IMAGE: zintrust/zintrust-proxy-gateway
 
 jobs:
   build-and-push:
@@ -28,6 +31,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@68827325e0b33c7199eb31dd4e31fbe9023e06e4 # v3.0.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226 # v3.0.0
+
       - name: Lowercase repository name
         run: |
           echo "IMAGE_NAME=${GITHUB_REPOSITORY,,}" >> ${GITHUB_ENV}
@@ -39,11 +48,36 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
+      - name: Log in to Docker Hub
+        uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3.2.0
+        with:
+          registry: ${{ env.DOCKERHUB_REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for runtime image
+        id: meta_runtime
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+            ${{ env.DOCKERHUB_RUNTIME_IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=sha,format=short
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
+
+      - name: Extract metadata (tags, labels) for gateway image
+        id: meta_gateway
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        with:
+          images: |
+            ${{ env.REGISTRY }}/${{ env.DOCKERHUB_GATEWAY_IMAGE }}
+            ${{ env.DOCKERHUB_GATEWAY_IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=sha,format=short
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
 
       - name: Build Docker image (local)
         uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355 # v6.10.0
@@ -85,13 +119,25 @@ jobs:
             exit 0
           fi
 
-      - name: Build and push Docker image
+      - name: Build and push runtime image
         uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355 # v6.10.0
         with:
           context: .
           pull: true
           no-cache: true
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta_runtime.outputs.tags }}
+          labels: ${{ steps.meta_runtime.outputs.labels }}
           target: runtime
+
+      - name: Build and push proxy gateway image
+        uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355 # v6.10.0
+        with:
+          context: ./docker/proxy-gateway
+          pull: true
+          no-cache: true
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta_gateway.outputs.tags }}
+          labels: ${{ steps.meta_gateway.outputs.labels }}

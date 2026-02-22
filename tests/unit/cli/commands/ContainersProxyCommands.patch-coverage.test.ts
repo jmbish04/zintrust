@@ -1,3 +1,4 @@
+/* eslint-disable max-nested-callbacks */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('Cloudflare Containers proxy CLI commands (patch coverage)', () => {
@@ -7,6 +8,14 @@ describe('Cloudflare Containers proxy CLI commands (patch coverage)', () => {
   });
 
   describe('DockerCommand', () => {
+    it('registers a `push` subcommand for Docker Hub publishing', async () => {
+      const { DockerCommand } = await import('@cli/commands/DockerCommand');
+      const program = DockerCommand.create().getCommand();
+
+      const subcommandNames = program.commands.map((c) => c.name());
+      expect(subcommandNames).toContain('push');
+    });
+
     it('spawns wrangler dev with explicit config/env/port and exits with the returned code', async () => {
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
         throw new Error(`exit:${String(code)}`);

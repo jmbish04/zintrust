@@ -24,7 +24,7 @@
  */
 
 {
-  "name": "zintrust-proxys",
+  "name": "zintrust-proxy",
   "main": "./packages/cloudflare-containers-proxy/src/index.ts",
 
   "compatibility_date": "2025-04-21",
@@ -40,32 +40,32 @@
   "containers": [
     {
       "class_name": "ZintrustMySqlProxyContainer",
-      "image": "docker.io/zintrust/zintrust-proxy:latest",
+      "image": "docker.io/zintrust/zintrust:latest",
       "max_instances": 10,
     },
     {
       "class_name": "ZintrustPostgresProxyContainer",
-      "image": "docker.io/zintrust/zintrust-proxy:latest",
+      "image": "docker.io/zintrust/zintrust:latest",
       "max_instances": 10,
     },
     {
       "class_name": "ZintrustRedisProxyContainer",
-      "image": "docker.io/zintrust/zintrust-proxy:latest",
+      "image": "docker.io/zintrust/zintrust:latest",
       "max_instances": 10,
     },
     {
       "class_name": "ZintrustMongoDbProxyContainer",
-      "image": "docker.io/zintrust/zintrust-proxy:latest",
+      "image": "docker.io/zintrust/zintrust:latest",
       "max_instances": 10,
     },
     {
       "class_name": "ZintrustSqlServerProxyContainer",
-      "image": "docker.io/zintrust/zintrust-proxy:latest",
+      "image": "docker.io/zintrust/zintrust:latest",
       "max_instances": 10,
     },
     {
       "class_name": "ZintrustSmtpProxyContainer",
-      "image": "docker.io/zintrust/zintrust-proxy:latest",
+      "image": "docker.io/zintrust/zintrust:latest",
       "max_instances": 10,
     },
   ],

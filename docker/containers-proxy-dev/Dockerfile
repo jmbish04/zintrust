@@ -4,9 +4,9 @@
 #
 # Refresh the local cache when needed:
 #   npm run dev:cp -- --pull
-#   (or: docker pull docker.io/zintrust/zintrust-proxy:latest)
+#   (or: docker pull docker.io/zintrust/zintrust:latest)
 
-FROM docker.io/zintrust/zintrust-proxy:latest
+FROM docker.io/zintrust/zintrust:latest
 
 # The base image ships with a HEALTHCHECK against port 7772.
 # In Cloudflare Containers, we override the container command to run a proxy

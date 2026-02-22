@@ -2,7 +2,7 @@
 // dev-cp.mjs — starts Wrangler dev for the Cloudflare Containers proxy stack.
 //
 // The container image is pulled from Docker Hub:
-//   docker.io/zintrust/zintrust-proxy:latest
+//   docker.io/zintrust/zintrust:latest
 //
 // The thin wrapper Dockerfile at docker/containers-proxy-dev/Dockerfile
 // simply `FROM`s that Hub image, so Wrangler's buildx step will pull it
@@ -32,7 +32,7 @@ const CONFIG =
   readFlagValue('-c') ??
   'wrangler.containers-proxy.dev.jsonc';
 
-const HUB_IMAGE = 'docker.io/zintrust/zintrust-proxy:latest';
+const HUB_IMAGE = 'docker.io/zintrust/zintrust:latest';
 const SHOULD_PULL = hasFlag('--pull') || hasFlag('--build');
 const SHOULD_CLEAN_IMAGES = hasFlag('--clean-images');
 
@@ -92,6 +92,44 @@ const dockerTag = (source, target) => {
     env: process.env,
   });
   return typeof result.status === 'number' ? result.status : 1;
+};
+
+const extractTagSuffix = (ref) => {
+  const raw = String(ref ?? '').trim();
+  const idx = raw.lastIndexOf(':');
+  if (idx === -1) return '';
+  return raw.slice(idx + 1).trim();
+};
+
+const findCloudflareDevSeedSource = (targetRef) => {
+  const suffix = extractTagSuffix(targetRef);
+  if (!suffix) return null;
+
+  // Prefer re-tagging from an already-built Wrangler wrapper image with the same suffix.
+  // This preserves EXPOSE metadata required by the Containers monitor.
+  const imagesResult = runDocker(['image', 'ls', '--format', '{{.Repository}}:{{.Tag}}']);
+  if (imagesResult.status !== 0) return null;
+
+  const allRefs = splitLines(imagesResult.stdout);
+  const candidates = allRefs.filter(
+    (ref) =>
+      /^cloudflare-dev\/zintrust.*proxycontainer:[^\s]+$/.test(String(ref ?? '')) &&
+      String(ref).endsWith(`:${suffix}`)
+  );
+
+  return candidates.length > 0 ? candidates[0] : null;
+};
+
+const seedMissingTag = (targetRef) => {
+  const source = findCloudflareDevSeedSource(targetRef) ?? HUB_IMAGE;
+  try {
+    process.stderr.write(
+      `[dev:cp] docker tag ${source} ${targetRef}${source === HUB_IMAGE ? ' (from Hub)' : ''}\n`
+    );
+  } catch {
+    // ignore
+  }
+  return dockerTag(source, targetRef);
 };
 
 const runDocker = (args) => {
@@ -168,14 +206,15 @@ const runWithLiveOutput = async (command, args) => {
     for (const ref of refs) {
       if (seeded.has(ref)) continue;
       seeded.add(ref);
-      // Seed the exact tag Wrangler is looking for from the known-good Hub image.
-      // This is a dev-only workaround for Wrangler/Miniflare container image tagging quirks.
+      // Seed the exact tag Wrangler is looking for.
+      // Prefer re-tagging from another cloudflare-dev wrapper image (same hash) so EXPOSE
+      // metadata is preserved; fall back to the Hub image if needed.
       try {
         process.stderr.write(`\n[dev:cp] Seeding missing image tag: ${ref}\n`);
       } catch {
         // ignore
       }
-      dockerTag(HUB_IMAGE, ref);
+      seedMissingTag(ref);
     }
   };
 
@@ -252,8 +291,7 @@ for (let attempt = 1; attempt <= WRANGLER_RETRIES; attempt += 1) {
   );
 
   for (const tag of missing) {
-    console.error(`[dev:cp] docker tag ${HUB_IMAGE} ${tag}`);
-    const status = dockerTag(HUB_IMAGE, tag);
+    const status = seedMissingTag(tag);
     if (status !== 0) {
       console.error(`[dev:cp] Failed to seed tag: ${tag} (exit ${status})`);
       process.exit(status);

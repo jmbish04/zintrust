@@ -10,7 +10,7 @@
  *     npm run dev:cp -- --pull
  *
  * Base image (both amd64 + arm64 on Hub):
- *   docker.io/zintrust/zintrust-proxy:latest
+ *   docker.io/zintrust/zintrust:latest
  *
  * Thin wrapper Dockerfile location:
  *   docker/containers-proxy-dev/Dockerfile
@@ -18,7 +18,7 @@
  */
 
 {
-  "name": "zintrust-proxys",
+  "name": "zintrust-proxy",
   "main": "./packages/cloudflare-containers-proxy/src/index.ts",
 
   "compatibility_date": "2025-04-21",
@@ -32,7 +32,7 @@
   // --------------------------------------------------------------------------
   // Wrangler requires a Dockerfile path (not a bare image tag) for the `image`
   // field. The wrapper Dockerfile at docker/containers-proxy-dev/Dockerfile does
-  // a single `FROM docker.io/zintrust/zintrust-proxy:latest`, so Wrangler's
+  // a single `FROM docker.io/zintrust/zintrust:latest`, so Wrangler's
   // buildx step pulls the Hub image automatically.
   //
   // To refresh the Hub image before starting:

@@ -33,16 +33,14 @@ zin deploy:cw
 Publish workers/schedules images (maintainers / Docker Hub access required):
 
 ```bash
-zin cw publish-images --tag 0.1.46
-zin cw publish-workers --tag 0.1.46
-zin cw publish-schedules --tag 0.1.46
+zin docker push --tag <version>
 ```
 
 Use the prebuilt images in Compose (skip local builds):
 
 ```bash
-WORKERS_IMAGE=zintrust/zintrust-workers:0.1.46 docker compose -f docker-compose.workers.yml up -d
-SCHEDULES_IMAGE=zintrust/zintrust-schedules:0.1.46 docker compose -f docker-compose.schedules.yml up -d
+ZINTRUST_IMAGE=zintrust/zintrust:<version> docker compose -f docker-compose.workers.yml up -d
+ZINTRUST_IMAGE=zintrust/zintrust:<version> docker compose -f docker-compose.schedules.yml up -d
 ```
 
 Compatibility aliases still work:
@@ -85,9 +83,7 @@ zin cp down
 Publish proxy images (maintainers / Docker Hub access required):
 
 ```bash
-zin cp publish-proxy --tag 0.1.46
-zin cp publish-gateway --tag 0.1.46
-zin cp publish-images --tag 0.1.46
+zin docker push --tag <version>
 ```
 
 Compose target file: `docker-compose.proxy.yml`.

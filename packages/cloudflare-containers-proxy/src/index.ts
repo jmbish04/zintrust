@@ -513,7 +513,8 @@ const fetchWithContainerRetry = async (
   attempt = 1
 ): Promise<Response> => {
   try {
-    const response = await stub.fetch(request);
+    const requestClone = request.clone();
+    const response = await stub.fetch(requestClone);
     const notReady = await responseIndicatesContainerNotReady(response);
     if (!notReady) return response;
 
