@@ -232,6 +232,119 @@ describe('patch coverage: JwtSessions', () => {
     expect(deleteCalls).toBeLessThan(50);
   });
 
+  it('memory driver: re-registering same id with blank sub removes it from sub index', async () => {
+    vi.resetModules();
+
+    mockEnvModule();
+    mockWorkersModule();
+
+    vi.doMock('@config/logger', () => ({
+      Logger: {
+        debug: vi.fn(),
+      },
+    }));
+
+    const now = Date.now();
+    vi.doMock('@security/JwtManager', () => ({
+      JwtManager: {
+        create: () => ({
+          decode: (token: string) => {
+            if (token === 'with-sub') {
+              return { exp: Math.floor((now + 60_000) / 1000), jti: 'same-id', sub: 'u1' };
+            }
+            if (token === 'no-sub') {
+              return { exp: Math.floor((now + 60_000) / 1000), jti: 'same-id', sub: '' };
+            }
+            return { exp: Math.floor((now + 60_000) / 1000), jti: token, sub: 'u1' };
+          },
+        }),
+      },
+    }));
+
+    vi.doMock('@config/security', () => ({
+      securityConfig: {
+        jwt: {
+          expiresIn: 60,
+        },
+      },
+    }));
+
+    const env = makeEnv({ JWT_SESSION_DRIVER: 'memory' });
+    for (const [k, v] of Object.entries(env)) process.env[k] = v;
+
+    const { JwtSessions } = await import('@/security/JwtSessions');
+    JwtSessions._resetForTests();
+
+    // First register indexes id under u1.
+    await JwtSessions.register('with-sub');
+    expect(await JwtSessions.isActive('with-sub')).toBe(true);
+
+    // Re-register same id but with blank sub => indexDelete branch should run.
+    await JwtSessions.register('no-sub');
+
+    // logoutAll(u1) should no longer remove this session because it is no longer indexed.
+    await JwtSessions.logoutAll('u1');
+    expect(await JwtSessions.isActive('with-sub')).toBe(true);
+  });
+
+  it('memory driver: re-registering same id under a different sub reindexes (covers indexDelete on sub change)', async () => {
+    vi.resetModules();
+
+    mockEnvModule();
+    mockWorkersModule();
+
+    vi.doMock('@config/logger', () => ({
+      Logger: {
+        debug: vi.fn(),
+      },
+    }));
+
+    const now = Date.now();
+    vi.doMock('@security/JwtManager', () => ({
+      JwtManager: {
+        create: () => ({
+          decode: (token: string) => {
+            if (token === 'sub-u1') {
+              return { exp: Math.floor((now + 60_000) / 1000), jti: 'same-id2', sub: 'u1' };
+            }
+            if (token === 'sub-u2') {
+              return { exp: Math.floor((now + 60_000) / 1000), jti: 'same-id2', sub: 'u2' };
+            }
+            return { exp: Math.floor((now + 60_000) / 1000), jti: token, sub: 'u1' };
+          },
+        }),
+      },
+    }));
+
+    vi.doMock('@config/security', () => ({
+      securityConfig: {
+        jwt: {
+          expiresIn: 60,
+        },
+      },
+    }));
+
+    const env = makeEnv({ JWT_SESSION_DRIVER: 'memory' });
+    for (const [k, v] of Object.entries(env)) process.env[k] = v;
+
+    const { JwtSessions } = await import('@/security/JwtSessions');
+    JwtSessions._resetForTests();
+
+    await JwtSessions.register('sub-u1');
+    expect(await JwtSessions.isActive('sub-u1')).toBe(true);
+
+    // Same session id, different subject => should delete old index entry then reindex.
+    await JwtSessions.register('sub-u2');
+
+    // logoutAll for u1 should not remove the session anymore.
+    await JwtSessions.logoutAll('u1');
+    expect(await JwtSessions.isActive('sub-u1')).toBe(true);
+
+    // logoutAll for u2 should remove it.
+    await JwtSessions.logoutAll('u2');
+    expect(await JwtSessions.isActive('sub-u1')).toBe(false);
+  });
+
   it('database driver: upsert/exists/expiry delete paths', async () => {
     vi.resetModules();
 

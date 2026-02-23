@@ -169,7 +169,6 @@ export default defineConfig({
         'src/tools/queue/QueueDataRedactor.ts',
         'src/tools/queue/QueueExtensions.ts',
         'src/tools/queue/QueueReliabilityMetrics.ts',
-        'src/tools/queue/QueueReliabilityOrchestrator.ts',
         'src/tools/queue/QueueRuntimeRegistration.ts',
         'src/tools/queue/StalledJobMonitor.ts',
         'src/tools/queue/TimeoutManager.ts',
