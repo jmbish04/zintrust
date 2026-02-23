@@ -6,6 +6,17 @@ import { StalledJobMonitor } from '@queue/StalledJobMonitor';
 
 type TimerRef = ReturnType<typeof setInterval>;
 
+type UnrefableTimer = { unref: () => void };
+
+const isUnrefableTimer = (timer: unknown): timer is UnrefableTimer => {
+  return (
+    typeof timer === 'object' &&
+    timer !== null &&
+    'unref' in timer &&
+    typeof (timer as UnrefableTimer).unref === 'function'
+  );
+};
+
 type OrchestratorState = {
   started: boolean;
   reconciliationTimer?: TimerRef;
@@ -22,14 +33,21 @@ const clearTimer = (timer: TimerRef | undefined): void => {
   clearInterval(timer);
 };
 
-const startInterval = (handler: () => Promise<void>, intervalMs: number): TimerRef =>
-  setInterval(() => {
+const startInterval = (handler: () => Promise<void>, intervalMs: number): TimerRef => {
+  const timer = setInterval(() => {
     handler().catch((error: unknown) => {
       Logger.warn('Queue reliability interval failed', {
         error: error instanceof Error ? error : String(error),
       });
     });
   }, intervalMs);
+
+  if (isUnrefableTimer(timer)) {
+    timer.unref();
+  }
+
+  return timer;
+};
 
 export const QueueReliabilityOrchestrator = Object.freeze({
   isEnabled(): boolean {

@@ -87,6 +87,10 @@ function registerApiV1Routes(
     Router.post<MiddlewareKey>(r, '/auth/logout', authController.logout, {
       middleware: ['auth', 'jwt'],
     });
+
+    Router.post<MiddlewareKey>(r, '/auth/logout-all', authController.logoutAll, {
+      middleware: ['auth', 'jwt'],
+    });
     Router.post<MiddlewareKey>(r, '/auth/refresh', authController.refresh, {
       middleware: ['auth', 'jwt'],
     });
@@ -106,10 +110,14 @@ function registerApiV1Routes(
         destroy: userController.destroy,
       },
       {
-        middleware: ['auth', 'jwt'],
-        store: { middleware: ['auth', 'jwt', 'userMutationRateLimit', 'validateUserStore'] },
-        update: { middleware: ['auth', 'jwt', 'userMutationRateLimit', 'validateUserUpdate'] },
-        destroy: { middleware: ['auth', 'jwt', 'userMutationRateLimit'] },
+        middleware: ['auth', 'bulletproof'],
+        store: {
+          middleware: ['auth', 'bulletproof', 'userMutationRateLimit', 'validateUserStore'],
+        },
+        update: {
+          middleware: ['auth', 'bulletproof', 'userMutationRateLimit', 'validateUserUpdate'],
+        },
+        destroy: { middleware: ['auth', 'bulletproof', 'userMutationRateLimit'] },
       }
     );
 
@@ -132,7 +140,7 @@ function registerApiV1Routes(
       async (__req: IRequest, res: IResponse) => {
         res.json({ message: 'Get user profile' });
       },
-      { middleware: ['auth', 'jwt'] }
+      { middleware: ['auth', 'bulletproof'] }
     );
 
     Router.put<MiddlewareKey>(
@@ -141,7 +149,7 @@ function registerApiV1Routes(
       async (__req: IRequest, res: IResponse) => {
         res.json({ message: 'Update user profile' });
       },
-      { middleware: ['auth', 'jwt'] }
+      { middleware: ['auth', 'bulletproof'] }
     );
 
     // Posts resource

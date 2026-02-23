@@ -3,6 +3,7 @@ import type { MiddlewareConfigType } from '@config/type';
 import { bodyParsingMiddleware } from '@http/middleware/BodyParsingMiddleware';
 import { fileUploadMiddleware } from '@http/middleware/FileUploadMiddleware';
 import { AuthMiddleware } from '@middleware/AuthMiddleware';
+import { BulletproofAuthMiddleware } from '@middleware/BulletproofAuthMiddleware';
 import { CsrfMiddleware } from '@middleware/CsrfMiddleware';
 import { ErrorHandlerMiddleware } from '@middleware/ErrorHandlerMiddleware';
 import { JwtAuthMiddleware } from '@middleware/JwtAuthMiddleware';
@@ -55,6 +56,7 @@ type SharedMiddlewares = {
   csrf: Middleware;
   auth: Middleware;
   jwt: Middleware;
+  bulletproof: Middleware;
   validateLogin: Middleware;
   validateRegister: Middleware;
   validateUserStore: Middleware;
@@ -88,6 +90,7 @@ export const MiddlewareKeys = Object.freeze({
   csrf: true,
   auth: true,
   jwt: true,
+  bulletproof: true,
   validateLogin: true,
   validateRegister: true,
   validateUserStore: true,
@@ -293,6 +296,7 @@ function createSharedMiddlewares(
     }),
     auth: AuthMiddleware.create(),
     jwt: JwtAuthMiddleware.create(),
+    bulletproof: BulletproofAuthMiddleware.create(),
     ...validations,
   } satisfies SharedMiddlewares);
 }

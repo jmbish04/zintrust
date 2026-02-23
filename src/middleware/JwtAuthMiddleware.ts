@@ -6,7 +6,7 @@ import type { IResponse } from '@http/Response';
 import type { Middleware } from '@middleware/MiddlewareStack';
 import type { IJwtManager, JwtAlgorithm } from '@security/JwtManager';
 import { JwtManager } from '@security/JwtManager';
-import { TokenRevocation } from '@security/TokenRevocation';
+import { JwtSessions } from '@security/JwtSessions';
 
 export interface JwtAuthOptions {
   algorithm?: JwtAlgorithm;
@@ -50,6 +50,12 @@ export const JwtAuthMiddleware = Object.freeze({
     }
 
     return async (req: IRequest, res: IResponse, next: () => Promise<void>): Promise<void> => {
+      // If a stronger auth strategy already authenticated this request, do not re-verify.
+      if (req.context?.['authStrategy'] === 'bulletproof' && req.user !== undefined) {
+        await next();
+        return;
+      }
+
       const authorizationHeader = getHeaderValue(req.getHeader('authorization'));
       if (authorizationHeader === '') {
         res.setStatus(401).json({ error: 'Missing authorization header' });
@@ -62,13 +68,15 @@ export const JwtAuthMiddleware = Object.freeze({
         return;
       }
 
-      if (await TokenRevocation.isRevoked(token)) {
-        res.setStatus(401).json({ error: 'Invalid or expired token' });
-        return;
-      }
-
       try {
         const payload = jwt.verify(token, algorithm);
+
+        // Session allowlist: token must exist in the session store to be accepted.
+        if (!(await JwtSessions.isActive(token))) {
+          res.setStatus(401).json({ error: 'Invalid or expired token' });
+          return;
+        }
+
         req.user = payload;
 
         // Standardize request-scoped context fields.

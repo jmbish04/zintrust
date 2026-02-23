@@ -21,7 +21,8 @@
 - `zin schedule:list`: List registered schedules (core + `app/Schedules`)
 - `zin schedule:run`: Run a single schedule once (by name)
 - `zin schedule:start`: Start the schedules daemon (Node/Fargate) and block until shutdown
-- `zin jwt:dev`: Mint a local development JWT (for manual API testing)
+- `zin jwt:dev`: Mint a local development JWT (for manual API testing, now supports Bulletproof-compatible claims)
+- `zin key:bulletproof` (aliases: `bulletproof:key`, `key:signer`): Generate/rotate `BULLETPROOF_SIGNING_SECRET` in `.env` with automatic backup rotation
 - `zin make:mail-template`: Scaffold a mail markdown template into your app
 - `zin make:notification-template`: Scaffold a notification markdown template into your app
 - `zin fix`: Run automated code fixes
@@ -151,7 +152,7 @@ zin routes --json
 
 ## JWT Dev Token (`jwt:dev`)
 
-Mints a JWT that is compatible with the framework's `jwt` middleware (useful for manual testing protected routes).
+Mints a JWT compatible with the framework's `jwt` middleware. Supports all standard claims plus Bulletproof Auth binding claims.
 
 Usage:
 
@@ -161,22 +162,81 @@ zin jwt:dev [options]
 
 Options:
 
-- `--sub <sub>`: subject claim (default: `1`)
-- `--email <email>`: adds `email` claim
-- `--role <role>`: adds `role` claim
-- `--expires <duration>`: seconds or `30m`/`1h`/`7d` (default: `1h`)
-- `--json`: machine-readable output (prints a JSON object containing `token` and metadata)
-- `--allow-production`: override safety guard (dangerous)
+| Option                 | Description                                                   | Default |
+| ---------------------- | ------------------------------------------------------------- | ------- |
+| `--sub <sub>`          | `sub` (subject) claim                                         | `1`     |
+| `--email <email>`      | Adds `email` claim                                            | —       |
+| `--role <role>`        | Adds `role` claim                                             | —       |
+| `--expires <duration>` | Token expiry: seconds or `30m`/`1h`/`7d`                      | `1h`    |
+| `--device-id <id>`     | Adds `deviceId` claim (required for Bulletproof layer 7)      | —       |
+| `--tz <timezone>`      | Adds `tz` claim (Bulletproof layer 8 binding)                 | —       |
+| `--ua <user-agent>`    | Computes SHA-256 of the UA string and adds `uaHash` (layer 9) | —       |
+| `--ua-hash <hash>`     | Adds `uaHash` directly (hex string)                           | —       |
+| `--tenant-id <id>`     | Adds `tenantId` claim                                         | —       |
+| `--json`               | Machine-readable output (`{ token, ... }`)                    | —       |
+| `--allow-production`   | Override safety guard (dangerous)                             | —       |
 
 Examples:
 
 ```bash
-# Mint a token and paste it into an Authorization header
+# Standard token for jwt middleware
 zin jwt:dev --sub 1 --email dev@example.com --role admin
 
-# JSON mode (easy to script)
-zin jwt:dev --json --expires 30m
+# Bulletproof-compatible token (all binding claims)
+zin jwt:dev \
+  --sub 1 \
+  --email dev@example.com \
+  --role admin \
+  --device-id dev_abc123 \
+  --tz "America/New_York" \
+  --ua "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+
+# JSON mode for scripting
+zin jwt:dev --json --expires 30m --device-id dev_abc123
 ```
+
+## Bulletproof Key Generator (`key:bulletproof`)
+
+Generates a new `BULLETPROOF_SIGNING_SECRET` and writes it to `.env`. The current secret is automatically rotated into the `BULLETPROOF_SIGNING_SECRET_BK` backup array.
+
+Usage:
+
+```bash
+zin key:bulletproof [options]
+```
+
+Aliases: `zin bulletproof:key`, `zin key:signer`
+
+Options:
+
+- `--show`: Print the generated key to stdout only — do not modify `.env`
+- `--max-backups <n>`: Maximum number of old secrets to keep in `BULLETPROOF_SIGNING_SECRET_BK` (default: `5`, max: `50`)
+
+Examples:
+
+```bash
+# Generate and save to .env (rotates old secret to BK array)
+zin key:bulletproof
+
+# Print key only
+zin key:bulletproof --show
+
+# Limit backup history
+zin key:bulletproof --max-backups 3
+```
+
+Environment variables managed:
+
+```bash
+# .env (after running zin key:bulletproof)
+BULLETPROOF_SIGNING_SECRET=base64:<new-random-32-bytes>
+BULLETPROOF_SIGNING_SECRET_BK=["base64:<old-secret>"]
+```
+
+Fallback chain when `BULLETPROOF_SIGNING_SECRET` is unset:
+`AUTH_KEY` → `APP_KEY`
+
+> **Recommendation:** Always set a dedicated `BULLETPROOF_SIGNING_SECRET` for production. The fallback to `APP_KEY` is only suitable for local development.
 
 ## The `add` Command
 
@@ -420,8 +480,11 @@ zin redis:proxy
 
 ## Configuration Commands
 
-- `zin key:generate`: Generate and set the application key
-- `zin key:generate --show`: Display the key without modifying .env
+- `zin key:generate`: Generate and set the application key (`APP_KEY`)
+- `zin key:generate --show`: Display the key without modifying `.env`
+- `zin key:bulletproof`: Generate/rotate `BULLETPROOF_SIGNING_SECRET` (aliases: `bulletproof:key`, `key:signer`)
+- `zin key:bulletproof --show`: Print key only, do not modify `.env`
+- `zin key:bulletproof --max-backups <n>`: Set max rotation backup count (default: 5)
 - `zin config list`: List all configuration values
 - `zin config get <key>`: Get a specific configuration value
 - `zin config set <key> <value>`: Set a configuration value

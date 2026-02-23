@@ -402,7 +402,6 @@ export const SECRETS = Object.freeze({
 
   // Third-party APIs
   STRIPE_API_KEY: 'stripe/api-key',
-  STRIPE_WEBHOOK_SECRET: 'stripe/webhook-secret',
   SENDGRID_API_KEY: 'sendgrid/api-key',
   GITHUB_TOKEN: 'github/token',
 

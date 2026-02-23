@@ -34,6 +34,45 @@ describe('PostgreSQLProxyAdapter', () => {
     expect(out).toEqual({ x: 1 });
   });
 
+  it('covers ping/rawQuery/ensureMigrationsTable/disconnect and adapter getters', async () => {
+    vi.stubEnv('POSTGRES_PROXY_MODE', 'sql');
+
+    requestSignedProxyMock.mockImplementation(async (_cfg: unknown, path: string, payload: any) => {
+      if (path === '/zin/postgres/queryOne') return { row: { one: 1 } };
+      if (path === '/zin/postgres/query') {
+        if (String(payload.sql).includes('CREATE TABLE')) return { ok: true, meta: { changes: 0 } };
+        return { rows: [{ id: 7 }], rowCount: 1 };
+      }
+      throw new Error(`unexpected ${path}`);
+    });
+
+    const adapter = PostgreSQLProxyAdapter.create({} as any);
+    expect(adapter.isConnected()).toBe(false);
+
+    await adapter.connect();
+    expect(adapter.isConnected()).toBe(true);
+    expect(adapter.getType()).toBe('postgresql');
+    expect(adapter.getPlaceholder(3)).toBe('$3');
+
+    await expect(adapter.ping()).resolves.toBeUndefined();
+    await expect(adapter.rawQuery('select 1', [])).resolves.toEqual([{ id: 7 }]);
+    await expect(adapter.ensureMigrationsTable()).resolves.toBeUndefined();
+
+    await adapter.disconnect();
+    expect(adapter.isConnected()).toBe(false);
+    await expect(adapter.query('select 1', [])).rejects.toBeDefined();
+  });
+
+  it('ensureMigrationsTable throws a CLI error when proxy is unreachable', async () => {
+    vi.stubEnv('POSTGRES_PROXY_MODE', 'sql');
+    requestSignedProxyMock.mockRejectedValue(new Error('connect ECONNREFUSED'));
+
+    const adapter = PostgreSQLProxyAdapter.create({} as any);
+    await adapter.connect();
+
+    await expect(adapter.ensureMigrationsTable()).rejects.toBeDefined();
+  });
+
   it('transaction wraps errors', async () => {
     requestSignedProxyMock.mockResolvedValue({ rows: [], rowCount: 0 });
 

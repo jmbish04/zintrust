@@ -230,7 +230,7 @@ ZinTrust uses a proven layered architecture:
 - 📚 [Documentation](https://zintrust.com)
 - 💬 [Discord Community](https://discord.gg/zintrust)
 - 🐦 [Follow on X](https://x.com/zintrust)
-- 🐛 [Issue Tracker](https://github.com/ZinTrust /ZinTrust /issues)
+- 🐛 [Issue Tracker](https://github.com/ZinTrust/ZinTrust/issues)
 - 🤝 [Contributing Guide](./contributing.md)
 
 ## License

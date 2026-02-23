@@ -78,6 +78,16 @@ exports[`OpenAPI spec snapshot > matches a stable snapshot for routes/api.ts 1`]
         }
       }
     },
+    "/api/v1/auth/logout-all": {
+      "post": {
+        "operationId": "post_api_v1_auth_logout_all",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/v1/auth/refresh": {
       "post": {
         "operationId": "post_api_v1_auth_refresh",

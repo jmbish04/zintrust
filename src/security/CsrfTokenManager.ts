@@ -170,6 +170,58 @@ const createRedisClientFactory = (options?: CsrfTokenManagerOptions) => {
   };
 };
 
+const createRedisPrefixVersioner = (
+  keyPrefix: string,
+  getRedisClient: () => Redis
+): {
+  getEffectivePrefix: () => Promise<string>;
+  bumpPrefixVersion: () => Promise<void>;
+} => {
+  const versionKey = `${keyPrefix}__v`;
+  let cachedVersion: string | null = null;
+
+  const getVersion = async (): Promise<string> => {
+    if (cachedVersion !== null) return cachedVersion;
+    const client = getRedisClient();
+    const raw = await client.get(versionKey);
+    const v = (raw ?? '1').trim();
+    cachedVersion = v === '' ? '1' : v;
+    return cachedVersion;
+  };
+
+  const getEffectivePrefix = async (): Promise<string> => {
+    const v = await getVersion();
+    return `${keyPrefix}${v}:`;
+  };
+
+  const bumpPrefixVersion = async (): Promise<void> => {
+    const client = getRedisClient();
+    // INCR creates the key if it does not exist.
+    const next = await client.incr(versionKey);
+    cachedVersion = String(next);
+  };
+
+  return {
+    getEffectivePrefix,
+    bumpPrefixVersion,
+  };
+};
+
+const scanRedisKeys = async (client: Redis, match: string): Promise<string[]> => {
+  const keys: string[] = [];
+  const stream = client.scanStream({ match, count: 200 });
+
+  return new Promise<string[]>((resolve, reject) => {
+    stream.on('data', (resultKeys: string[]) => {
+      if (Array.isArray(resultKeys) && resultKeys.length) {
+        keys.push(...resultKeys);
+      }
+    });
+    stream.on('end', () => resolve(keys));
+    stream.on('error', (err) => reject(err));
+  });
+};
+
 const createRedisTokenOperations = (
   keyPrefix: string,
   tokenTtl: number,
@@ -178,14 +230,22 @@ const createRedisTokenOperations = (
   fetchTokenData: (sessionId: string) => Promise<CsrfTokenData | null>;
   saveTokenData: (data: CsrfTokenData) => Promise<void>;
   deleteToken: (sessionId: string) => Promise<void>;
-  scanKeys: () => Promise<string[]>;
+  scanKeys: (effectivePrefix: string) => Promise<string[]>;
+  getEffectivePrefix: () => Promise<string>;
+  bumpPrefixVersion: () => Promise<void>;
 } => {
-  const buildKey = (sessionId: string): string => `${keyPrefix}${sessionId}`;
+  const { getEffectivePrefix, bumpPrefixVersion } = createRedisPrefixVersioner(
+    keyPrefix,
+    getRedisClient
+  );
+
+  const buildKey = (prefix: string, sessionId: string): string => `${prefix}${sessionId}`;
 
   const fetchTokenData = async (sessionId: string): Promise<CsrfTokenData | null> => {
     try {
       const client = getRedisClient();
-      const payload = await client.get(buildKey(sessionId));
+      const prefix = await getEffectivePrefix();
+      const payload = await client.get(buildKey(prefix, sessionId));
       if (payload === null || payload === '') return null;
       const parsed = JSON.parse(payload) as StoredCsrfTokenData;
       return toTokenData(parsed);
@@ -198,13 +258,14 @@ const createRedisTokenOperations = (
   const saveTokenData = async (data: CsrfTokenData): Promise<void> => {
     try {
       const client = getRedisClient();
+      const prefix = await getEffectivePrefix();
       const stored: StoredCsrfTokenData = {
         token: data.token,
         sessionId: data.sessionId,
         createdAt: data.createdAt.getTime(),
         expiresAt: data.expiresAt.getTime(),
       };
-      await client.set(buildKey(data.sessionId), JSON.stringify(stored), 'PX', tokenTtl);
+      await client.set(buildKey(prefix, data.sessionId), JSON.stringify(stored), 'PX', tokenTtl);
     } catch (error) {
       Logger.error('CSRF Redis save failed', error as Error);
     }
@@ -213,26 +274,16 @@ const createRedisTokenOperations = (
   const deleteToken = async (sessionId: string): Promise<void> => {
     try {
       const client = getRedisClient();
-      await client.del(buildKey(sessionId));
+      const prefix = await getEffectivePrefix();
+      await client.del(buildKey(prefix, sessionId));
     } catch (error) {
       Logger.error('CSRF Redis delete failed', error as Error);
     }
   };
 
-  const scanKeys = async (): Promise<string[]> => {
+  const scanKeys = async (effectivePrefix: string): Promise<string[]> => {
     const client = getRedisClient();
-    const keys: string[] = [];
-    const stream = client.scanStream({ match: `${keyPrefix}*`, count: 200 });
-
-    return new Promise<string[]>((resolve, reject) => {
-      stream.on('data', (resultKeys: string[]) => {
-        if (Array.isArray(resultKeys) && resultKeys.length) {
-          keys.push(...resultKeys);
-        }
-      });
-      stream.on('end', () => resolve(keys));
-      stream.on('error', (err) => reject(err));
-    });
+    return scanRedisKeys(client, `${effectivePrefix}*`);
   };
 
   return {
@@ -240,6 +291,8 @@ const createRedisTokenOperations = (
     saveTokenData,
     deleteToken,
     scanKeys,
+    getEffectivePrefix,
+    bumpPrefixVersion,
   };
 };
 
@@ -250,11 +303,14 @@ const createRedisManager = (
 ): ICsrfTokenManager => {
   const keyPrefix = options?.keyPrefix ?? RedisKeys.getCsrfPrefix();
   const getRedisClient = createRedisClientFactory(options);
-  const { fetchTokenData, saveTokenData, deleteToken, scanKeys } = createRedisTokenOperations(
-    keyPrefix,
-    tokenTtl,
-    getRedisClient
-  );
+  const {
+    fetchTokenData,
+    saveTokenData,
+    deleteToken,
+    scanKeys,
+    getEffectivePrefix,
+    bumpPrefixVersion,
+  } = createRedisTokenOperations(keyPrefix, tokenTtl, getRedisClient);
 
   return {
     async generateToken(sessionId: string): Promise<string> {
@@ -300,17 +356,16 @@ const createRedisManager = (
     },
     async clear(): Promise<void> {
       try {
-        const keys = await scanKeys();
-        if (keys.length === 0) return;
-        const client = getRedisClient();
-        await client.del(...keys);
+        // Logical clear: bump the version so future operations use a new prefix.
+        await bumpPrefixVersion();
       } catch (error) {
         Logger.error('CSRF Redis clear failed', error as Error);
       }
     },
     async getTokenCount(): Promise<number> {
       try {
-        const keys = await scanKeys();
+        const prefix = await getEffectivePrefix();
+        const keys = await scanKeys(prefix);
         return keys.length;
       } catch (error) {
         Logger.error('CSRF Redis count failed', error as Error);

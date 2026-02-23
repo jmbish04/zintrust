@@ -23,7 +23,6 @@ export interface CsrfOptions {
    * Supports simple glob-style matching where `*` matches any characters.
    * Examples:
    * - `/api/*`
-   * - `/webhooks/*`
    * - `/api/v1/auth/login`
    */
   skipPaths?: string[];
@@ -43,6 +42,14 @@ const canUseWeakRef = typeof WeakRef === 'function';
 const managerRegistry = new Set<WeakRef<ICsrfTokenManager>>();
 
 let globalCleanupTimer: ReturnType<typeof setInterval> | null = null;
+
+let sharedSessionManager: ReturnType<typeof SessionManager.create> | null = null;
+
+const getSharedSessionManager = (): ReturnType<typeof SessionManager.create> => {
+  if (sharedSessionManager !== null) return sharedSessionManager;
+  sharedSessionManager = SessionManager.create();
+  return sharedSessionManager;
+};
 
 const ensureCleanupTimer = (): void => {
   if (globalCleanupTimer !== null) return;
@@ -76,7 +83,7 @@ export const CsrfMiddleware = Object.freeze({
   create(options: CsrfOptions = {}): Middleware {
     const config = { ...DEFAULT_OPTIONS, ...options };
     const manager = CsrfTokenManager.create();
-    const sessions = SessionManager.create();
+    const sessions = getSharedSessionManager();
 
     ensureCleanupTimer();
 

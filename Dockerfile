@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.6
 # Build Stage - Compile TypeScript
-FROM node:20-bookworm-slim AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -9,9 +9,7 @@ ENV NPM_CONFIG_CACHE=/root/.npm
 ENV NPM_CONFIG_PREFER_OFFLINE=true
 
 # Install build dependencies for native modules (better-sqlite3, bcrypt)
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 make g++ git \
-  && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache python3 make g++ git
 
 # Patch npm (base image includes npm 10.x with vulnerable bundled deps)
 ARG NPM_VERSION=11.10.0
@@ -43,7 +41,7 @@ ARG BUILD_VARIANT=full
 RUN --mount=type=cache,target=/root/.npm,id=zintrust-npm-cache,sharing=locked npm run build:dk
 
 # Runtime Stage - Production image
-FROM node:20-bookworm-slim AS runtime
+FROM node:20-alpine AS runtime
 
 WORKDIR /app
 
@@ -53,7 +51,7 @@ ENV PORT=7772
 ENV HOST=0.0.0.0
 
 # Create non-root user for security
-RUN groupadd -g 1001 nodejs && useradd -u 1001 -g 1001 -m -s /usr/sbin/nologin nodejs
+RUN addgroup -g 1001 -S nodejs && adduser -u 1001 -S -G nodejs nodejs
 
 # Patch npm (base image includes npm 10.x with vulnerable bundled deps)
 ARG NPM_VERSION=11.10.0
@@ -72,15 +70,13 @@ COPY package.json package-lock.json ./
 
 # Install only production dependencies (requires build tools for native modules)
 RUN --mount=type=cache,target=/root/.npm,id=zintrust-npm-cache,sharing=locked \
-  apt-get update \
-  && apt-get install -y --no-install-recommends python3 make g++ \
+  apk add --no-cache --virtual .build-deps python3 make g++ \
   && npm ci --omit=dev \
   && npm cache clean --force \
-  && apt-get purge -y --auto-remove python3 make g++ \
+  && apk del .build-deps \
   && find /root/.npm -mindepth 1 -delete \
   && rm -rf /usr/local/lib/node_modules/npm \
-  && rm -f /usr/local/bin/npm /usr/local/bin/npx \
-  && rm -rf /var/lib/apt/lists/*
+  && rm -f /usr/local/bin/npm /usr/local/bin/npx
 
 # Copy compiled code from builder stage
 COPY --from=builder /app/dist ./dist

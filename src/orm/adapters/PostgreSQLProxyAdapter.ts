@@ -5,17 +5,15 @@
  * Used in Cloudflare Workers when POSTGRES_PROXY_URL is configured.
  */
 
-import { Env } from '@config/env';
 import { ErrorFactory } from '@exceptions/ZintrustError';
 import { AdaptersEnum, type SupportedDriver } from '@migrations/enum';
 import {
-  ensureSignedSettings,
   isRecord,
-  requestSignedProxy,
   type ProxySettings,
   type SignedProxyConfig,
 } from '@orm/adapters/SqlProxyAdapterUtils';
-import { createStatementPayload, resolveSqlProxyMode } from '@orm/adapters/SqlProxyRegistryMode';
+import { SqlProxyHttpAdapterShared, type ProxyMode } from '@orm/adapters/SqlProxyHttpAdapterShared';
+import { createStatementPayload } from '@orm/adapters/SqlProxyRegistryMode';
 import type { DatabaseConfig, IDatabaseAdapter, QueryResult } from '@orm/DatabaseAdapter';
 import { QueryBuilder } from '@orm/QueryBuilder';
 
@@ -35,37 +33,31 @@ type ProxyExecResponse = {
 
 type ProxyStatementResponse = ProxyQueryResponse | ProxyQueryOneResponse | ProxyExecResponse;
 
-const resolveBaseUrl = (): string => {
-  const explicit = Env.POSTGRES_PROXY_URL.trim();
-  if (explicit !== '') return explicit;
-  const host = Env.POSTGRES_PROXY_HOST || '127.0.0.1';
-  const port = Env.POSTGRES_PROXY_PORT;
-  return `http://${host}:${port}`;
-};
-
 const buildProxySettings = (): ProxySettings => {
-  const baseUrl = resolveBaseUrl();
-  const keyId = Env.POSTGRES_PROXY_KEY_ID ?? '';
-  const secret = Env.POSTGRES_PROXY_SECRET ?? '';
-  const timeoutMs = Env.POSTGRES_PROXY_TIMEOUT_MS;
-
-  return { baseUrl, keyId, secret, timeoutMs };
+  return SqlProxyHttpAdapterShared.buildProxySettingsFromEnv({
+    urlKey: 'POSTGRES_PROXY_URL',
+    hostKey: 'POSTGRES_PROXY_HOST',
+    portKey: 'POSTGRES_PROXY_PORT',
+    defaultHost: '127.0.0.1',
+    defaultPort: 8790,
+    keyIdKey: 'POSTGRES_PROXY_KEY_ID',
+    secretKey: 'POSTGRES_PROXY_SECRET',
+    timeoutKey: 'POSTGRES_PROXY_TIMEOUT_MS',
+    sharedKeyIdKey: 'ZT_PROXY_KEY_ID',
+    sharedSecretKey: 'ZT_PROXY_SECRET',
+    sharedTimeoutKey: 'ZT_PROXY_TIMEOUT_MS',
+  });
 };
 
-const buildSignedProxyConfig = (settings: ProxySettings): SignedProxyConfig => ({
-  settings,
-  missingUrlMessage: 'PostgreSQL proxy URL is missing (POSTGRES_PROXY_URL)',
-  missingCredentialsMessage:
-    'PostgreSQL proxy signing credentials are missing (POSTGRES_PROXY_KEY_ID / POSTGRES_PROXY_SECRET)',
-  messages: {
-    unauthorized: 'PostgreSQL proxy unauthorized',
-    forbidden: 'PostgreSQL proxy forbidden',
-    rateLimited: 'PostgreSQL proxy rate limited',
-    rejected: 'PostgreSQL proxy rejected request',
-    error: 'PostgreSQL proxy error',
-    timedOut: 'PostgreSQL proxy request timed out',
-  },
-});
+const buildSignedProxyConfig = (settings: ProxySettings): SignedProxyConfig => {
+  return SqlProxyHttpAdapterShared.buildStandardSignedProxyConfig({
+    settings,
+    label: 'PostgreSQL',
+    urlKey: 'POSTGRES_PROXY_URL',
+    keyIdKey: 'POSTGRES_PROXY_KEY_ID',
+    secretKey: 'POSTGRES_PROXY_SECRET',
+  });
+};
 
 const isQueryResponse = (value: unknown): value is ProxyQueryResponse =>
   isRecord(value) && Array.isArray(value['rows']) && typeof value['rowCount'] === 'number';
@@ -115,108 +107,171 @@ const toQueryResult = (out: ProxyStatementResponse): QueryResult => {
   return { rows: [], rowCount: meta.changes };
 };
 
-const requestProxy = async <T>(
-  settings: ProxySettings,
-  path: string,
-  payload: Record<string, unknown>
-): Promise<T> => {
-  return requestSignedProxy<T>(buildSignedProxyConfig(settings), path, payload);
-};
-
-type ProxyMode = 'sql' | 'registry';
-
 const resolveProxyMode = (): ProxyMode => {
-  return resolveSqlProxyMode('POSTGRES_PROXY_MODE');
+  return SqlProxyHttpAdapterShared.resolveProxyModeFromEnv('POSTGRES_PROXY_MODE');
 };
 
-export const PostgreSQLProxyAdapter = Object.freeze({
-  create(_config: DatabaseConfig): IDatabaseAdapter {
-    let connected = true;
-    const settings = buildProxySettings();
+type PostgresProxyState = {
+  connected: boolean;
+  settings: ProxySettings;
+  signed: SignedProxyConfig;
+};
 
-    return {
-      async connect(): Promise<void> {
-        ensureSignedSettings(buildSignedProxyConfig(settings));
-        connected = true;
-      },
+const requireConnected = (state: PostgresProxyState): void => {
+  if (!state.connected) throw ErrorFactory.createConnectionError('Database not connected');
+};
 
-      async disconnect(): Promise<void> {
-        connected = true;
-      },
-
-      async query(sql: string, parameters: unknown[]): Promise<QueryResult> {
-        if (!connected) throw ErrorFactory.createConnectionError('Database not connected');
-        const mode = resolveProxyMode();
-        const out =
-          mode === 'registry'
-            ? await requestProxy<ProxyStatementResponse>(
-                settings,
-                '/zin/postgres/statement',
-                await createStatementPayload(sql, parameters)
-              )
-            : await requestProxy<ProxyStatementResponse>(settings, '/zin/postgres/query', {
-                sql,
-                params: parameters,
-              });
-        return toQueryResult(out);
-      },
-
-      async queryOne(sql: string, parameters: unknown[]): Promise<Record<string, unknown> | null> {
-        if (!connected) throw ErrorFactory.createConnectionError('Database not connected');
-        const mode = resolveProxyMode();
-        if (mode !== 'registry') {
-          const out = await requestProxy<ProxyQueryOneResponse>(
-            settings,
-            '/zin/postgres/queryOne',
+const createQuery =
+  (state: PostgresProxyState) =>
+  async (sql: string, parameters: unknown[]): Promise<QueryResult> => {
+    requireConnected(state);
+    const mode = resolveProxyMode();
+    const out =
+      mode === 'registry'
+        ? await SqlProxyHttpAdapterShared.requestProxy<ProxyStatementResponse>(
+            state.signed,
+            '/zin/postgres/statement',
+            await createStatementPayload(sql, parameters)
+          )
+        : await SqlProxyHttpAdapterShared.requestProxy<ProxyStatementResponse>(
+            state.signed,
+            '/zin/postgres/query',
             {
               sql,
               params: parameters,
             }
           );
-          return out.row ?? null;
+    return toQueryResult(out);
+  };
+
+const createQueryOne =
+  (state: PostgresProxyState) =>
+  async (sql: string, parameters: unknown[]): Promise<Record<string, unknown> | null> => {
+    requireConnected(state);
+    const mode = resolveProxyMode();
+    if (mode !== 'registry') {
+      const out = await SqlProxyHttpAdapterShared.requestProxy<ProxyQueryOneResponse>(
+        state.signed,
+        '/zin/postgres/queryOne',
+        {
+          sql,
+          params: parameters,
         }
+      );
+      return out.row ?? null;
+    }
 
-        const out = await requestProxy<ProxyStatementResponse>(
-          settings,
-          '/zin/postgres/statement',
-          await createStatementPayload(sql, parameters)
-        );
+    const out = await SqlProxyHttpAdapterShared.requestProxy<ProxyStatementResponse>(
+      state.signed,
+      '/zin/postgres/statement',
+      await createStatementPayload(sql, parameters)
+    );
 
-        if (isQueryOneResponse(out)) return out.row ?? null;
-        if (isQueryResponse(out)) return out.rows[0] ?? null;
-        return null;
-      },
+    if (isQueryOneResponse(out)) return out.row ?? null;
+    if (isQueryResponse(out)) return out.rows[0] ?? null;
+    return null;
+  };
 
-      async ping(): Promise<void> {
-        if (!connected) throw ErrorFactory.createConnectionError('Database not connected');
-        await this.queryOne(QueryBuilder.create('').select('1').toSQL(), []);
-      },
+const createPing =
+  (queryOne: (sql: string, parameters: unknown[]) => Promise<Record<string, unknown> | null>) =>
+  async (): Promise<void> => {
+    await queryOne(QueryBuilder.create('').select('1').toSQL(), []);
+  };
 
-      async transaction<T>(callback: (adapter: IDatabaseAdapter) => Promise<T>): Promise<T> {
-        if (!connected) throw ErrorFactory.createConnectionError('Database not connected');
-        try {
-          return await callback(this);
-        } catch (error: unknown) {
-          throw ErrorFactory.createTryCatchError('PostgreSQL proxy transaction failed', error);
-        }
-      },
+const createTransaction =
+  (state: PostgresProxyState, getAdapter: () => IDatabaseAdapter) =>
+  async <T>(callback: (adapter: IDatabaseAdapter) => Promise<T>): Promise<T> => {
+    requireConnected(state);
+    try {
+      return await callback(getAdapter());
+    } catch (error: unknown) {
+      throw ErrorFactory.createTryCatchError('PostgreSQL proxy transaction failed', error);
+    }
+  };
 
-      async rawQuery<T = unknown>(sql: string, parameters: unknown[] = []): Promise<T[]> {
-        if (!connected) throw ErrorFactory.createConnectionError('Database not connected');
-        const out = await this.query(sql, parameters);
-        return out.rows as T[];
-      },
+const createRawQuery =
+  (
+    state: PostgresProxyState,
+    query: (sql: string, parameters: unknown[]) => Promise<QueryResult>
+  ) =>
+  async <T = unknown>(sql: string, parameters: unknown[] = []): Promise<T[]> => {
+    requireConnected(state);
+    const out = await query(sql, parameters);
+    return out.rows as T[];
+  };
 
-      getType(): SupportedDriver {
-        return AdaptersEnum.postgresql;
-      },
-      isConnected(): boolean {
-        return connected;
-      },
-      getPlaceholder(index: number): string {
-        return `$${index}`;
-      },
-    };
+const createEnsureMigrationsTable =
+  (
+    state: PostgresProxyState,
+    query: (sql: string, parameters: unknown[]) => Promise<QueryResult>
+  ) =>
+  async (): Promise<void> => {
+    requireConnected(state);
+    try {
+      await query(
+        `CREATE TABLE IF NOT EXISTS migrations (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            scope VARCHAR(255) NOT NULL DEFAULT 'global',
+            service VARCHAR(255) NOT NULL DEFAULT '',
+            batch INTEGER NOT NULL,
+            status VARCHAR(255) NOT NULL,
+            applied_at TIMESTAMP NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(name, scope, service)
+          )`,
+        []
+      );
+    } catch (error) {
+      throw SqlProxyHttpAdapterShared.createProxyNotReachableCliError(
+        'PostgreSQL proxy',
+        state.settings.baseUrl,
+        error
+      );
+    }
+  };
+
+const createAdapter = (state: PostgresProxyState): IDatabaseAdapter => {
+  const query = createQuery(state);
+  const queryOne = createQueryOne(state);
+
+  const adapter: IDatabaseAdapter = {
+    async connect(): Promise<void> {
+      SqlProxyHttpAdapterShared.ensureSignedProxyConfig(state.signed);
+      state.connected = true;
+    },
+
+    async disconnect(): Promise<void> {
+      state.connected = false;
+    },
+
+    query,
+    queryOne,
+    ping: createPing(queryOne),
+    transaction: createTransaction(state, () => adapter),
+    rawQuery: createRawQuery(state, query),
+    ensureMigrationsTable: createEnsureMigrationsTable(state, query),
+
+    getType(): SupportedDriver {
+      return AdaptersEnum.postgresql;
+    },
+    isConnected(): boolean {
+      return state.connected;
+    },
+    getPlaceholder(index: number): string {
+      return `$${index}`;
+    },
+  };
+
+  return adapter;
+};
+
+export const PostgreSQLProxyAdapter = Object.freeze({
+  create(_config: DatabaseConfig): IDatabaseAdapter {
+    const settings = buildProxySettings();
+    const signed = buildSignedProxyConfig(settings);
+    const state: PostgresProxyState = { connected: false, settings, signed };
+    return createAdapter(state);
   },
 });
 

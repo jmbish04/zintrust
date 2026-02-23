@@ -1,0 +1,260 @@
+### ============================================================
+### Bulletproof Auth — REST Client test suite
+### Requires VS Code extension: REST Client (humao.rest-client)
+### ============================================================
+###
+### WHAT THIS TESTS
+###   1.  Login  →  receive jwt + deviceId + deviceSecret
+###   2.  Login failure  (wrong password)
+###   3.  GET /me  (bulletproof-protected, headers auto-signed via node snippet)
+###   4.  POST with body  (bulletproof-protected)
+###   5.  Logout  (revokes JWT, removes device record)
+###   6.  Request after logout  (should return 401)
+###   7.  Missing signature headers  (should return 401)
+###   8.  Wrong device-id  (should return 401)
+###   9.  Dev-only: pre-signed request using zin jwt:dev + manual headers
+###
+### QUICK START
+###   Step 1 — start the server
+###     zin start
+###
+###   Step 2 — click "Send Request" on the Login block below
+###             the response variables (@authJwt, @authDeviceId, @authDeviceSecret)
+###             will be captured and reused by every subsequent request
+###
+###   Step 3 — for signed GET/POST requests, generate headers once:
+###     node --input-type=module << 'EOF'
+###     import { SignedRequest } from '@zintrust/signer';
+###     const url = new URL('http://localhost:7777/api/me');
+###     const h = await SignedRequest.createHeaders({
+###       method: 'GET', url, body: '',
+###       keyId: '<deviceId from login response>',
+###       secret: '<deviceSecret from login response>',
+###     });
+###     console.log(JSON.stringify(h, null, 2));
+###     EOF
+###
+###   Paste the output into the @zt* variables in section [B] below.
+### ============================================================
+
+# ── Global config ──────────────────────────────────────────
+@baseUrl    = http://localhost:7777
+@userAgent  = ZinTrust REST Client
+@timezone   = UTC
+
+# ── Test credentials ───────────────────────────────────────
+@testEmail    = dev@example.com
+@testPassword = password
+
+# ── [B] Manual signed-headers (paste from node snippet above) ──
+# These are only needed if you bypass the login flow for the
+# standalone signed-request tests at the bottom of this file.
+@manualJwt       =
+@manualDeviceId  = dev-1
+@ztKeyId         = dev-1
+@ztTimestamp     =
+@ztNonce         =
+@ztBodySha256    =
+@ztSignature     =
+
+
+# ==============================================================
+# 1. LOGIN  ✓ expected: 200 { jwt, deviceId, deviceSecret }
+# ==============================================================
+# @name loginRequest — response variables are captured below
+# ==============================================================
+
+### [1] Login — happy path
+# @name loginRequest
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{testEmail}}",
+  "password": "{{testPassword}}"
+}
+
+# Capture response values for use in subsequent requests:
+@authJwt          = {{loginRequest.response.body.jwt}}
+@authDeviceId     = {{loginRequest.response.body.deviceId}}
+@authDeviceSecret = {{loginRequest.response.body.deviceSecret}}
+
+
+# ==============================================================
+# 2. LOGIN FAILURE  ✓ expected: 401 Invalid credentials
+# ==============================================================
+
+### [2] Login — wrong password
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{testEmail}}",
+  "password": "wrong-password"
+}
+
+
+# ==============================================================
+# 3. GET /me  (Bulletproof-protected)
+#    ✓ expected: 200 { id, email, role, deviceId }
+#
+#    Before sending: run the node snippet in QUICK START with
+#    keyId = @authDeviceId, secret = @authDeviceSecret, path /api/me
+#    and paste the output into the @zt* variables in section [B].
+# ==============================================================
+
+### [3] GET /me — bulletproof-protected (uses headers from login + manual @zt* vars)
+GET {{baseUrl}}/api/me
+Authorization: Bearer {{authJwt}}
+User-Agent: {{userAgent}}
+x-zt-device-id:  {{authDeviceId}}
+x-zt-timezone:   {{timezone}}
+x-zt-key-id:      {{ztKeyId}}
+x-zt-timestamp:   {{ztTimestamp}}
+x-zt-nonce:       {{ztNonce}}
+x-zt-body-sha256: {{ztBodySha256}}
+x-zt-signature:   {{ztSignature}}
+
+
+# ==============================================================
+# 4. POST with body  (Bulletproof-protected)
+#    ✓ expected: 200 / 201
+#
+#    Generate signed headers for this body:
+#      node --input-type=module << 'EOF'
+#      import { SignedRequest } from '@zintrust/signer';
+#      const body = JSON.stringify({ name: 'Test Item' });
+#      const url  = new URL('http://localhost:7777/api/items');
+#      const h = await SignedRequest.createHeaders({
+#        method: 'POST', url, body,
+#        keyId: '<authDeviceId>', secret: '<authDeviceSecret>',
+#      });
+#      console.log(JSON.stringify(h, null, 2));
+#      EOF
+# ==============================================================
+
+### [4] POST /api/items — signed POST with JSON body
+# @name postItemSigned
+POST {{baseUrl}}/api/items
+Authorization: Bearer {{authJwt}}
+Content-Type: application/json
+User-Agent: {{userAgent}}
+x-zt-device-id:  {{authDeviceId}}
+x-zt-timezone:   {{timezone}}
+x-zt-key-id:      {{ztKeyId}}
+x-zt-timestamp:   {{ztTimestamp}}
+x-zt-nonce:       {{ztNonce}}
+x-zt-body-sha256: {{ztBodySha256}}
+x-zt-signature:   {{ztSignature}}
+
+{
+  "name": "Test Item"
+}
+
+
+# ==============================================================
+# 5. LOGOUT  ✓ expected: 200 { message: "Logged out" }
+#    Revokes JWT and removes device record.
+#    After sending this, request [6] should return 401.
+# ==============================================================
+
+### [5] Logout — revoke token + device
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{authJwt}}
+User-Agent: {{userAgent}}
+x-zt-device-id:  {{authDeviceId}}
+x-zt-timezone:   {{timezone}}
+x-zt-key-id:      {{ztKeyId}}
+x-zt-timestamp:   {{ztTimestamp}}
+x-zt-nonce:       {{ztNonce}}
+x-zt-body-sha256: {{ztBodySha256}}
+x-zt-signature:   {{ztSignature}}
+
+
+# ==============================================================
+# 6. REQUEST AFTER LOGOUT  ✓ expected: 401 (token revoked)
+# ==============================================================
+
+### [6] GET /me after logout — should be 401 (revoked token)
+GET {{baseUrl}}/api/me
+Authorization: Bearer {{authJwt}}
+User-Agent: {{userAgent}}
+x-zt-device-id:  {{authDeviceId}}
+x-zt-key-id:      {{ztKeyId}}
+x-zt-timestamp:   {{ztTimestamp}}
+x-zt-nonce:       {{ztNonce}}
+x-zt-body-sha256: {{ztBodySha256}}
+x-zt-signature:   {{ztSignature}}
+
+
+# ==============================================================
+# 7. MISSING SIGNATURE HEADERS  ✓ expected: 401
+#    No x-zt-* headers at all — proof-of-possession check fails.
+# ==============================================================
+
+### [7] GET /me — missing all x-zt-* headers (should be 401)
+GET {{baseUrl}}/api/me
+Authorization: Bearer {{authJwt}}
+User-Agent: {{userAgent}}
+
+
+# ==============================================================
+# 8. WRONG DEVICE-ID  ✓ expected: 401 (device binding mismatch)
+#    x-zt-key-id doesn't match x-zt-device-id
+# ==============================================================
+
+### [8] GET /me — device-id mismatch (should be 401)
+GET {{baseUrl}}/api/me
+Authorization: Bearer {{authJwt}}
+User-Agent: {{userAgent}}
+x-zt-device-id:  WRONG-DEVICE
+x-zt-timezone:   {{timezone}}
+x-zt-key-id:      {{ztKeyId}}
+x-zt-timestamp:   {{ztTimestamp}}
+x-zt-nonce:       {{ztNonce}}
+x-zt-body-sha256: {{ztBodySha256}}
+x-zt-signature:   {{ztSignature}}
+
+
+# ==============================================================
+# 9. DEV: pre-signed via zin jwt:dev  (no login required)
+#
+#    Use this block when your backend uses a single shared
+#    BULLETPROOF_SIGNING_SECRET (quick-start / dev mode).
+#
+#    Step 1 — mint a JWT with device binding claims:
+#      zin jwt:dev \
+#        --sub 1 \
+#        --email dev@example.com \
+#        --role admin \
+#        --device-id dev-1 \
+#        --tz UTC \
+#        --ua "ZinTrust REST Client"
+#
+#    Step 2 — generate signed headers:
+#      node --input-type=module << 'EOF'
+#      import { SignedRequest } from '@zintrust/signer';
+#      const url = new URL('http://localhost:7777/api/v1/profile');
+#      const h = await SignedRequest.createHeaders({
+#        method: 'GET', url, body: '',
+#        keyId: 'dev-1',
+#        secret: process.env.BULLETPROOF_SIGNING_SECRET ?? 'change-me',
+#      });
+#      console.log(JSON.stringify(h, null, 2));
+#      EOF
+#
+#    Step 3 — paste the JWT into @manualJwt and the
+#             x-zt-* values into the @zt* variables in section [B].
+# ==============================================================
+
+### [9] Dev pre-signed GET /api/v1/profile (manual jwt + manual zt headers)
+GET {{baseUrl}}/api/v1/profile
+Authorization: Bearer {{manualJwt}}
+User-Agent: {{userAgent}}
+x-zt-device-id:  {{manualDeviceId}}
+x-zt-timezone:   {{timezone}}
+x-zt-key-id:      {{ztKeyId}}
+x-zt-timestamp:   {{ztTimestamp}}
+x-zt-nonce:       {{ztNonce}}
+x-zt-body-sha256: {{ztBodySha256}}
+x-zt-signature:   {{ztSignature}}

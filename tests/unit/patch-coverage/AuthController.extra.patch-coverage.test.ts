@@ -84,7 +84,9 @@ describe('AuthController targeted branches', () => {
       },
     }));
     vi.doMock('@auth/Auth', () => ({ Auth: { compare: async () => true } }));
-    vi.doMock('@security/JwtManager', () => ({ JwtManager: { signAccessToken: () => 'tok' } }));
+    vi.doMock('@security/JwtManager', () => ({
+      JwtManager: { signAccessToken: () => 'tok', logout: vi.fn(), logoutAll: vi.fn() },
+    }));
     const { default: AuthController } = await import('@app/Controllers/AuthController');
     const { req, res } = makeReqRes();
     await AuthController.create().login(req, res);
@@ -128,12 +130,14 @@ describe('AuthController targeted branches', () => {
   });
 
   it('logout: revokes token and returns message', async () => {
-    const revokeSpy = vi.fn();
-    vi.doMock('@security/TokenRevocation', () => ({ TokenRevocation: { revoke: revokeSpy } }));
+    const logoutSpy = vi.fn(async () => null);
+    vi.doMock('@security/JwtManager', () => ({
+      JwtManager: { logout: logoutSpy, signAccessToken: vi.fn() },
+    }));
     const { default: AuthController } = await import('@app/Controllers/AuthController');
     const { req, res } = makeReqRes({ header: 'Bearer tok' });
     await AuthController.create().logout(req, res);
-    expect(revokeSpy).toHaveBeenCalledWith('Bearer tok');
+    expect(logoutSpy).toHaveBeenCalledWith('Bearer tok');
     expect(res._calls.payload).toEqual({ message: 'Logged out' });
   });
 
@@ -148,6 +152,9 @@ describe('AuthController targeted branches', () => {
   it('refresh: returns token when user present', async () => {
     vi.doMock('@security/JwtManager', () => ({
       JwtManager: { signAccessToken: (_u: any) => 'ntok' },
+    }));
+    vi.doMock('@security/JwtSessions', () => ({
+      JwtSessions: { register: vi.fn(async () => undefined), logout: vi.fn(async () => null) },
     }));
     const { default: AuthController } = await import('@app/Controllers/AuthController');
     const { req, res } = makeReqRes({ user: { sub: '1', email: 'a@b' } });

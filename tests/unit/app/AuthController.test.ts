@@ -29,6 +29,8 @@ vi.mock('@auth/Auth', () => ({
 vi.mock('@security/JwtManager', () => ({
   JwtManager: {
     signAccessToken: vi.fn(() => 'signed-token'),
+    logout: vi.fn(),
+    logoutAll: vi.fn(),
   },
 }));
 
@@ -211,10 +213,15 @@ describe('AuthController', () => {
     const res = createRes();
     await controller.login(req, res as any);
 
-    expect(JwtManager.signAccessToken).toHaveBeenCalledWith({ sub: 'u1', email: 'a@example.com' });
+    expect(JwtManager.signAccessToken).toHaveBeenCalledWith({
+      sub: 'u1',
+      email: 'a@example.com',
+      deviceId: 'dev-u1',
+    });
     expect(res.json).toHaveBeenCalledWith({
       token: 'signed-token',
       token_type: 'Bearer',
+      deviceId: 'dev-u1',
       user: { id: 'u1', name: 'A', email: 'a@example.com' },
     });
   });

@@ -205,13 +205,36 @@ describe('Database', () => {
     expect(db.getType()).toBe('mysql');
   });
 
-  it('selects PostgreSQL proxy adapter in Node when POSTGRES_PROXY_URL is set', () => {
+  it('does not select MySQL proxy adapter when USE_MYSQL_PROXY=false (even if MYSQL_PROXY_URL is set)', () => {
+    process.env.USE_MYSQL_PROXY = 'false';
+    process.env.MYSQL_PROXY_URL = 'http://localhost:8787/mysql';
+
+    db = Database.create({ driver: 'mysql', database: 'test' } as any);
+
+    expect(MySQLProxyAdapter.create).not.toHaveBeenCalled();
+    expect(MySQLAdapter.create).toHaveBeenCalled();
+    expect(db.getType()).toBe('mysql');
+  });
+
+  it('selects PostgreSQL proxy adapter in Node when USE_POSTGRES_PROXY=true', () => {
+    process.env.USE_POSTGRES_PROXY = 'true';
     process.env.POSTGRES_PROXY_URL = 'http://localhost:8787/postgres';
 
     db = Database.create({ driver: 'postgresql', database: 'test' } as any);
 
     expect(PostgreSQLProxyAdapter.create).toHaveBeenCalled();
     expect(PostgreSQLAdapter.create).not.toHaveBeenCalled();
+    expect(db.getType()).toBe('postgresql');
+  });
+
+  it('does not select PostgreSQL proxy adapter when USE_POSTGRES_PROXY=false (even if POSTGRES_PROXY_URL is set)', () => {
+    process.env.USE_POSTGRES_PROXY = 'false';
+    process.env.POSTGRES_PROXY_URL = 'http://localhost:8787/postgres';
+
+    db = Database.create({ driver: 'postgresql', database: 'test' } as any);
+
+    expect(PostgreSQLProxyAdapter.create).not.toHaveBeenCalled();
+    expect(PostgreSQLAdapter.create).toHaveBeenCalled();
     expect(db.getType()).toBe('postgresql');
   });
 

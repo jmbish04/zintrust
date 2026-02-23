@@ -4,6 +4,7 @@
  */
 
 import { Auth } from '@/auth/Auth';
+import { isUndefinedOrNull } from '@/helper';
 import { User } from '@app/Models/User';
 import type { AuthControllerApi, JsonRecord, UserRow } from '@app/Types/controller';
 import { getString } from '@common/utility';
@@ -12,7 +13,6 @@ import type { IRequest } from '@http/Request';
 import type { IResponse } from '@http/Response';
 import { getValidatedBody } from '@http/ValidationHelper';
 import { JwtManager } from '@security/JwtManager';
-import { TokenRevocation } from '@security/TokenRevocation';
 
 const pickPublicUser = (row: UserRow): { id: unknown; name: string; email: string } => {
   return {
@@ -76,9 +76,15 @@ async function login(req: IRequest, res: IResponse): Promise<void> {
       return undefined;
     })();
 
-    const token = JwtManager.signAccessToken({
+    // Bulletproof Auth (device binding) expects a device id header to match a JWT claim.
+    // For the example app, we mint a stable device id derived from the subject.
+    // Production apps should issue a per-device id and manage a per-device signing secret.
+    const deviceId = isUndefinedOrNull(subject) ? undefined : `dev-${subject}`;
+
+    const token = await JwtManager.signAccessToken({
       sub: subject,
       email,
+      ...(isUndefinedOrNull(deviceId) ? {} : { deviceId }),
     });
 
     Logger.info('AuthController.login: successful login', {
@@ -91,6 +97,7 @@ async function login(req: IRequest, res: IResponse): Promise<void> {
     res.json({
       token,
       token_type: 'Bearer',
+      ...(isUndefinedOrNull(deviceId) ? {} : { deviceId }),
       user,
     });
   } catch (error) {
@@ -189,8 +196,25 @@ async function register(req: IRequest, res: IResponse): Promise<void> {
 async function logout(req: IRequest, res: IResponse): Promise<void> {
   const authHeader =
     typeof req.getHeader === 'function' ? req.getHeader('authorization') : undefined;
-  await TokenRevocation.revoke(authHeader);
+  await JwtManager.logout(authHeader);
   res.json({ message: 'Logged out' });
+}
+
+/**
+ * Logs out the current user from all devices by removing all active sessions for their subject.
+ *
+ * With session allowlist enforcement, deleting a user's session records causes any previously issued
+ * tokens to become unauthorized (401) immediately.
+ */
+async function logoutAll(req: IRequest, res: IResponse): Promise<void> {
+  const sub = typeof req.user?.sub === 'string' ? req.user.sub.trim() : '';
+  if (sub === '') {
+    res.setStatus(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  await JwtManager.logoutAll(sub);
+  res.json({ message: 'Logged out everywhere' });
 }
 
 /**
@@ -208,7 +232,7 @@ async function refresh(req: IRequest, res: IResponse): Promise<void> {
     return;
   }
 
-  const token = JwtManager.signAccessToken(user);
+  const token = await JwtManager.signAccessToken(user);
   res.json({ token, token_type: 'Bearer' });
 }
 
@@ -218,6 +242,7 @@ export const AuthController = Object.freeze({
       login,
       register,
       logout,
+      logoutAll,
       refresh,
     };
   },

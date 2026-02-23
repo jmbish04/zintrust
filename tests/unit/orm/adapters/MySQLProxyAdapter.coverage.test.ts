@@ -139,4 +139,20 @@ describe('MySQLProxyAdapter', () => {
     await expect(adapter.query('select 1', [])).rejects.toThrow('network down');
     expect(ensureSignedSettingsMock).toHaveBeenCalled();
   });
+
+  it('ensureMigrationsTable succeeds and throws a CLI error when unreachable', async () => {
+    requestSignedProxyMock.mockImplementation(async (_cfg: unknown, path: string) => {
+      if (path === '/zin/mysql/query') return { ok: true, meta: { changes: 0 } };
+      if (path === '/zin/mysql/queryOne') return { row: null };
+      throw new Error('unexpected');
+    });
+
+    const adapter = MySQLProxyAdapter.create({} as any);
+    await adapter.connect();
+
+    await expect(adapter.ensureMigrationsTable()).resolves.toBeUndefined();
+
+    requestSignedProxyMock.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+    await expect(adapter.ensureMigrationsTable()).rejects.toBeDefined();
+  });
 });
