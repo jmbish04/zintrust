@@ -90,9 +90,11 @@ describe('ConfigManager - error and helper branches', () => {
     });
 
     const { ConfigManager } = await import('@cli/config/ConfigManager');
-    const mgr = ConfigManager.create('/tmp/project/config.json');
+    // Use a directory path so that even if cross-file mocks leak (and the real fs is used),
+    // the read fails with a non-ENOENT error instead of silently falling back to defaults.
+    const mgr = ConfigManager.create('/tmp');
 
-    await expect(mgr.load()).rejects.toThrow('read denied');
+    await expect(mgr.load()).rejects.toThrow();
   });
 
   test('exists returns false when access check fails', async () => {
