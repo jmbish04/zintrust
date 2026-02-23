@@ -57,6 +57,24 @@ Use the `auth` + `jwt` middleware to protect your routes:
 Router.get(router, '/api/v1/profile', handler, { middleware: ['auth', 'jwt'] });
 ```
 
+### Accessing the authenticated user in handlers
+
+When `jwt` middleware succeeds, it attaches the verified JWT payload to the request:
+
+- `req.user` (request lifecycle)
+
+So route handlers do not need to re-verify JWTs.
+
+### Bulletproof Auth (recommended for high-risk apps)
+
+If you want strong protection against stolen JWT reuse, use **Bulletproof Auth** (JWT + token revocation + signed-request proof + replay + device binding):
+
+```ts
+Router.get(router, '/api/v1/profile', handler, { middleware: ['auth', 'bulletproof'] });
+```
+
+See: `bulletproof-auth` documentation page.
+
 ## API Key Authentication
 
 For service-to-service communication, you can use API keys:

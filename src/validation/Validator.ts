@@ -5,7 +5,8 @@
  */
 
 import { Logger } from '@config/logger';
-import type { FieldError} from '@validation/ValidationError';
+import { ErrorFactory } from '@exceptions/ZintrustError';
+import type { FieldError } from '@validation/ValidationError';
 import { createValidationError } from '@validation/ValidationError';
 
 export type Rule =
@@ -392,11 +393,11 @@ const ruleStringTokenHandlers: Record<string, (ctx: RuleStringTokenContext) => v
   nullable: () => {
     // Not needed here; missing/undefined is already allowed unless required.
   },
-  unique: ({ schema, field }) => {
-    schema.custom(
-      field,
-      () => false,
-      `${field} unique validation is not supported in the core rule-string API yet`
+  unique: ({ field }) => {
+    // Rule-string validation is intentionally "pure" (no DB access). Uniqueness requires a backing store.
+    throw ErrorFactory.createConfigError(
+      'Validator rule-string token "unique" is not supported (requires a database-backed validator).',
+      { field }
     );
   },
 };

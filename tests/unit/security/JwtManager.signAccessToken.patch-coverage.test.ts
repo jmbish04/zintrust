@@ -18,7 +18,7 @@ describe('JwtManager.signAccessToken (patch coverage)', () => {
 
     const { JwtManager } = await import('@/security/JwtManager');
 
-    const token = JwtManager.signAccessToken({ sub: 'user-1', email: 'a@example.com' });
+    const token = await JwtManager.signAccessToken({ sub: 'user-1', email: 'a@example.com' });
     expect(typeof token).toBe('string');
 
     const verifier = JwtManager.create();
@@ -26,7 +26,7 @@ describe('JwtManager.signAccessToken (patch coverage)', () => {
 
     const payload = verifier.verify(token, 'HS256');
     expect(payload.sub).toBe('user-1');
-    expect(payload.email).toBe('a@example.com');
+    expect(payload['email']).toBe('a@example.com');
     expect(payload.iss).toBe('ZinTrust');
     expect(payload.aud).toBe('tests');
   });
@@ -48,6 +48,6 @@ describe('JwtManager.signAccessToken (patch coverage)', () => {
 
     const { JwtManager } = await import('@/security/JwtManager');
 
-    expect(() => JwtManager.signAccessToken({ sub: 'user-1' })).toThrow();
+    await expect(JwtManager.signAccessToken({ sub: 'user-1' })).rejects.toThrow();
   });
 });

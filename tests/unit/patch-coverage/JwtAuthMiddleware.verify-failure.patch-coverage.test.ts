@@ -27,9 +27,9 @@ describe('patch coverage: JwtAuthMiddleware verify failure logging', () => {
       },
     }));
 
-    vi.doMock('@security/TokenRevocation', () => ({
-      TokenRevocation: {
-        isRevoked: vi.fn(async () => false),
+    vi.doMock('@security/JwtSessions', () => ({
+      JwtSessions: {
+        isActive: vi.fn(async () => true),
       },
     }));
 

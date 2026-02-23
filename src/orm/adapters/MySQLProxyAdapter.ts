@@ -5,21 +5,19 @@
  * Used in Cloudflare Workers when MYSQL_PROXY_URL is configured.
  */
 
-import { Env } from '@config/env';
 import { Logger } from '@config/logger';
 import { ErrorFactory } from '@exceptions/ZintrustError';
 import { AdaptersEnum, type SupportedDriver } from '@migrations/enum';
 import {
   ensureSignedSettings,
   isRecord,
-  requestSignedProxy,
   type ProxySettings,
   type SignedProxyConfig,
 } from '@orm/adapters/SqlProxyAdapterUtils';
+import { SqlProxyHttpAdapterShared, type ProxyMode } from '@orm/adapters/SqlProxyHttpAdapterShared';
 import {
   createStatementPayload,
   getExecMetaWithLastRowId,
-  resolveSqlProxyMode,
 } from '@orm/adapters/SqlProxyRegistryMode';
 import type { DatabaseConfig, IDatabaseAdapter, QueryResult } from '@orm/DatabaseAdapter';
 import { QueryBuilder } from '@orm/QueryBuilder';
@@ -42,28 +40,26 @@ type ProxyExecResponse = {
 type ProxyStatementResponse = ProxyQueryResponse | ProxyQueryOneResponse | ProxyExecResponse;
 
 const buildProxySettings = (): ProxySettings => {
-  const baseUrl = Env.MYSQL_PROXY_URL;
-  const keyId = Env.MYSQL_PROXY_KEY_ID ?? '';
-  const secret = Env.MYSQL_PROXY_SECRET ?? '';
-  const timeoutMs = Env.MYSQL_PROXY_TIMEOUT_MS;
-
-  return { baseUrl, keyId, secret, timeoutMs };
+  return SqlProxyHttpAdapterShared.buildProxySettingsFromEnv({
+    urlKey: 'MYSQL_PROXY_URL',
+    keyIdKey: 'MYSQL_PROXY_KEY_ID',
+    secretKey: 'MYSQL_PROXY_SECRET',
+    timeoutKey: 'MYSQL_PROXY_TIMEOUT_MS',
+    sharedKeyIdKey: 'ZT_PROXY_KEY_ID',
+    sharedSecretKey: 'ZT_PROXY_SECRET',
+    sharedTimeoutKey: 'ZT_PROXY_TIMEOUT_MS',
+  });
 };
 
-const buildSignedProxyConfig = (settings: ProxySettings): SignedProxyConfig => ({
-  settings,
-  missingUrlMessage: 'MySQL proxy URL is missing (MYSQL_PROXY_URL)',
-  missingCredentialsMessage:
-    'MySQL proxy signing credentials are missing (MYSQL_PROXY_KEY_ID / MYSQL_PROXY_SECRET)',
-  messages: {
-    unauthorized: 'MySQL proxy unauthorized',
-    forbidden: 'MySQL proxy forbidden',
-    rateLimited: 'MySQL proxy rate limited',
-    rejected: 'MySQL proxy rejected request',
-    error: 'MySQL proxy error',
-    timedOut: 'MySQL proxy request timed out',
-  },
-});
+const buildSignedProxyConfig = (settings: ProxySettings): SignedProxyConfig => {
+  return SqlProxyHttpAdapterShared.buildStandardSignedProxyConfig({
+    settings,
+    label: 'MySQL',
+    urlKey: 'MYSQL_PROXY_URL',
+    keyIdKey: 'MYSQL_PROXY_KEY_ID',
+    secretKey: 'MYSQL_PROXY_SECRET',
+  });
+};
 
 const isQueryResponse = (value: unknown): value is ProxyQueryResponse =>
   isRecord(value) && Array.isArray(value['rows']) && typeof value['rowCount'] === 'number';
@@ -72,35 +68,33 @@ const isQueryOneResponse = (value: unknown): value is ProxyQueryOneResponse =>
   isRecord(value) && 'row' in value;
 
 const requestProxy = async <T>(
-  settings: ProxySettings,
+  state: { settings: ProxySettings; signed: SignedProxyConfig },
   path: string,
   payload: Record<string, unknown>
 ): Promise<T> => {
-  const signedProxyConfig = buildSignedProxyConfig(settings);
   try {
-    return await requestSignedProxy<T>(signedProxyConfig, path, payload);
+    return await SqlProxyHttpAdapterShared.requestProxy<T>(state.signed, path, payload);
   } catch (error: unknown) {
     Logger.error('[MySQLProxyAdapter] Proxy request failed', {
       path,
-      baseUrl: settings.baseUrl,
-      timeoutMs: settings.timeoutMs,
-      hasKeyId: (settings.keyId ?? '').trim() !== '',
-      hasSecret: (settings.secret ?? '').trim() !== '',
+      baseUrl: state.settings.baseUrl,
+      timeoutMs: state.settings.timeoutMs,
+      hasKeyId: (state.settings.keyId ?? '').trim() !== '',
+      hasSecret: (state.settings.secret ?? '').trim() !== '',
       error: error instanceof Error ? error.message : String(error),
     });
     throw error;
   }
 };
 
-type ProxyMode = 'sql' | 'registry';
-
 const resolveProxyMode = (): ProxyMode => {
-  return resolveSqlProxyMode('MYSQL_PROXY_MODE');
+  return SqlProxyHttpAdapterShared.resolveProxyModeFromEnv('MYSQL_PROXY_MODE');
 };
 
 type MySQLProxyState = {
   connected: boolean;
   settings: ProxySettings;
+  signed: SignedProxyConfig;
 };
 
 const requireConnected = (state: MySQLProxyState): void => {
@@ -133,11 +127,11 @@ const createQuery =
     const out =
       mode === 'registry'
         ? await requestProxy<ProxyStatementResponse>(
-            state.settings,
+            state,
             '/zin/mysql/statement',
             await createStatementPayload(sql, parameters)
           )
-        : await requestProxy<ProxyStatementResponse>(state.settings, '/zin/mysql/query', {
+        : await requestProxy<ProxyStatementResponse>(state, '/zin/mysql/query', {
             sql,
             params: parameters,
           });
@@ -151,7 +145,7 @@ const createQueryOne =
     requireConnected(state);
     const mode = resolveProxyMode();
     if (mode !== 'registry') {
-      const out = await requestProxy<ProxyQueryOneResponse>(state.settings, '/zin/mysql/queryOne', {
+      const out = await requestProxy<ProxyQueryOneResponse>(state, '/zin/mysql/queryOne', {
         sql,
         params: parameters,
       });
@@ -159,7 +153,7 @@ const createQueryOne =
     }
 
     const out = await requestProxy<ProxyStatementResponse>(
-      state.settings,
+      state,
       '/zin/mysql/statement',
       await createStatementPayload(sql, parameters)
     );
@@ -201,7 +195,7 @@ const createAdapter = (state: MySQLProxyState): IDatabaseAdapter => {
 
   const adapter: IDatabaseAdapter = {
     async connect(): Promise<void> {
-      ensureSignedSettings(buildSignedProxyConfig(state.settings));
+      ensureSignedSettings(state.signed);
       state.connected = true;
     },
 
@@ -215,6 +209,32 @@ const createAdapter = (state: MySQLProxyState): IDatabaseAdapter => {
 
     transaction: createTransaction(state, () => adapter),
     rawQuery: createRawQuery(state, query),
+
+    async ensureMigrationsTable(): Promise<void> {
+      requireConnected(state);
+      try {
+        await query(
+          `CREATE TABLE IF NOT EXISTS migrations (
+            id INTEGER PRIMARY KEY AUTO_INCREMENT,
+            name VARCHAR(255) NOT NULL,
+            scope VARCHAR(255) NOT NULL DEFAULT 'global',
+            service VARCHAR(255) NOT NULL DEFAULT '',
+            batch INTEGER NOT NULL,
+            status VARCHAR(255) NOT NULL,
+            applied_at DATETIME NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(name, scope, service)
+          )`,
+          []
+        );
+      } catch (error) {
+        throw SqlProxyHttpAdapterShared.createProxyNotReachableCliError(
+          'MySQL proxy',
+          state.settings.baseUrl,
+          error
+        );
+      }
+    },
 
     getType(): SupportedDriver {
       return AdaptersEnum.mysql;
@@ -233,7 +253,8 @@ const createAdapter = (state: MySQLProxyState): IDatabaseAdapter => {
 export const MySQLProxyAdapter = Object.freeze({
   create(_config: DatabaseConfig): IDatabaseAdapter {
     const settings = buildProxySettings();
-    const state: MySQLProxyState = { connected: false, settings };
+    const signed = buildSignedProxyConfig(settings);
+    const state: MySQLProxyState = { connected: false, settings, signed };
 
     Logger.info('[MySQLProxyAdapter] Created with runtime settings', {
       baseUrl: settings.baseUrl,

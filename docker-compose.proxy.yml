@@ -7,14 +7,22 @@ x-proxy-runtime: &proxy-runtime
   build:
     context: .
     dockerfile: Dockerfile
-  pull_policy: ${PROXY_PULL_POLICY:-if_not_present}
-  restart: on-failure:3
+  pull_policy: ${PROXY_PULL_POLICY:-always}
+  restart: unless-stopped
+  mem_limit: ${PROXY_MEM_LIMIT:-512m}
+  cpus: ${PROXY_CPUS:-1.0}
+  pids_limit: ${PROXY_PIDS_LIMIT:-512}
+  logging:
+    driver: json-file
+    options:
+      max-size: ${PROXY_LOG_MAX_SIZE:-10m}
+      max-file: ${PROXY_LOG_MAX_FILE:-3}
   ulimits:
     nofile:
       soft: 65535
       hard: 65535
   environment:
-    NODE_ENV: ${NODE_ENV:-development}
+    NODE_ENV: ${NODE_ENV:-production}
     APP_NAME: ${APP_NAME:-ZinTrust}
     APP_KEY: ${APP_KEY:-}
     CSRF_SKIP_PATHS: ${CSRF_SKIP_PATHS:-/api/*,/queue-monitor/*}
@@ -27,8 +35,16 @@ services:
     build:
       context: ./docker/proxy-gateway
       dockerfile: Dockerfile
-    pull_policy: ${PROXY_PULL_POLICY:-if_not_present}
-    restart: on-failure:3
+    pull_policy: ${PROXY_PULL_POLICY:-always}
+    restart: unless-stopped
+    mem_limit: ${PROXY_GATEWAY_MEM_LIMIT:-512m}
+    cpus: ${PROXY_GATEWAY_CPUS:-1.0}
+    pids_limit: ${PROXY_GATEWAY_PIDS_LIMIT:-512}
+    logging:
+      driver: json-file
+      options:
+        max-size: ${PROXY_LOG_MAX_SIZE:-10m}
+        max-file: ${PROXY_LOG_MAX_FILE:-3}
     ulimits:
       nofile:
         soft: 200000
@@ -43,7 +59,7 @@ services:
     ports:
       - ${PROXY_GATEWAY_PORT:-8800}:8080
     environment:
-      NODE_ENV: ${NODE_ENV:-development}
+      NODE_ENV: ${NODE_ENV:-production}
       CSRF_SKIP_PATHS: ${CSRF_SKIP_PATHS:-/api/*,/queue-monitor/*}
     healthcheck:
       disable: ${PROXY_GATEWAY_HEALTHCHECK_DISABLE:-false}
@@ -61,7 +77,7 @@ services:
     expose:
       - '8789'
     environment:
-      NODE_ENV: ${NODE_ENV:-development}
+      NODE_ENV: ${NODE_ENV:-production}
       APP_NAME: ${APP_NAME:-ZinTrust}
       APP_KEY: ${APP_KEY:-}
       CSRF_SKIP_PATHS: ${CSRF_SKIP_PATHS:-/api/*,/queue-monitor/*}
@@ -100,7 +116,7 @@ services:
     expose:
       - '8790'
     environment:
-      NODE_ENV: ${NODE_ENV:-development}
+      NODE_ENV: ${NODE_ENV:-production}
       APP_NAME: ${APP_NAME:-ZinTrust}
       APP_KEY: ${APP_KEY:-}
       CSRF_SKIP_PATHS: ${CSRF_SKIP_PATHS:-/api/*,/queue-monitor/*}
@@ -134,7 +150,7 @@ services:
     expose:
       - '8791'
     environment:
-      NODE_ENV: ${NODE_ENV:-development}
+      NODE_ENV: ${NODE_ENV:-production}
       APP_NAME: ${APP_NAME:-ZinTrust}
       APP_KEY: ${APP_KEY:-}
       CSRF_SKIP_PATHS: ${CSRF_SKIP_PATHS:-/api/*,/queue-monitor/*}
@@ -170,7 +186,7 @@ services:
     expose:
       - '8792'
     environment:
-      NODE_ENV: ${NODE_ENV:-development}
+      NODE_ENV: ${NODE_ENV:-production}
       APP_NAME: ${APP_NAME:-ZinTrust}
       APP_KEY: ${APP_KEY:-}
       CSRF_SKIP_PATHS: ${CSRF_SKIP_PATHS:-/api/*,/queue-monitor/*}
@@ -200,7 +216,7 @@ services:
     expose:
       - '8793'
     environment:
-      NODE_ENV: ${NODE_ENV:-development}
+      NODE_ENV: ${NODE_ENV:-production}
       APP_NAME: ${APP_NAME:-ZinTrust}
       APP_KEY: ${APP_KEY:-}
       CSRF_SKIP_PATHS: ${CSRF_SKIP_PATHS:-/api/*,/queue-monitor/*}
@@ -234,7 +250,7 @@ services:
     expose:
       - '8794'
     environment:
-      NODE_ENV: ${NODE_ENV:-development}
+      NODE_ENV: ${NODE_ENV:-production}
       APP_NAME: ${APP_NAME:-ZinTrust}
       APP_KEY: ${APP_KEY:-}
       CSRF_SKIP_PATHS: ${CSRF_SKIP_PATHS:-/api/*,/queue-monitor/*}

@@ -99,7 +99,9 @@ describe('AuthController extra branches', () => {
       },
     }));
     vi.doMock('@security/Auth', () => ({ Auth: { compare: async () => true } }));
-    vi.doMock('@security/JwtManager', () => ({ JwtManager: { signAccessToken: () => 'tok' } }));
+    vi.doMock('@security/JwtManager', () => ({
+      JwtManager: { signAccessToken: () => 'tok', logout: vi.fn(), logoutAll: vi.fn() },
+    }));
     vi.doMock('@config/logger', () => ({
       Logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     }));
@@ -163,14 +165,14 @@ describe('AuthController extra branches', () => {
 
   it('logout: revokes token and returns message', async () => {
     vi.resetModules();
-    const revoke = vi.fn();
-    vi.doMock('@security/TokenRevocation', () => ({ TokenRevocation: { revoke } }));
+    const logout = vi.fn(async () => null);
+    vi.doMock('@security/JwtManager', () => ({ JwtManager: { logout, signAccessToken: vi.fn() } }));
     const { AuthController } = await import('@app/Controllers/AuthController');
     const { req, res, calls } = makeReqRes({ headers: { authorization: 'Bearer t' } });
 
     await AuthController.create().logout(req, res);
     expect(calls.payload).toEqual({ message: 'Logged out' });
-    expect(revoke).toHaveBeenCalled();
+    expect(logout).toHaveBeenCalled();
   });
 
   it('refresh: returns 401 when unauthenticated', async () => {
@@ -185,6 +187,9 @@ describe('AuthController extra branches', () => {
   it('refresh: returns new token on success', async () => {
     vi.resetModules();
     vi.doMock('@security/JwtManager', () => ({ JwtManager: { signAccessToken: () => 'newtok' } }));
+    vi.doMock('@security/JwtSessions', () => ({
+      JwtSessions: { register: vi.fn(async () => undefined), logout: vi.fn(async () => null) },
+    }));
     const { AuthController } = await import('@app/Controllers/AuthController');
     const { req, res, calls } = makeReqRes({ user: { sub: '1' } });
     await AuthController.create().refresh(req, res);

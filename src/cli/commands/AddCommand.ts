@@ -148,7 +148,7 @@ const addOptions = (command: Command): void => {
     .option('--with-test', 'Generate test files - for features')
     .option(
       '--controller-type <type>',
-      'Controller type: crud, resource, api, graphql, websocket, webhook - for controllers'
+      'Controller type: crud, resource, api, graphql, websocket - for controllers'
     )
     .option('--soft-delete', 'Add soft delete to model')
     .option('--timestamps', 'Add timestamps to model (default: true)')
@@ -478,7 +478,7 @@ const promptControllerConfig = async (): Promise<ControllerPromptAnswers> => {
       type: 'list',
       name: 'type',
       message: 'Controller type:',
-      choices: ['crud', 'resource', 'api', 'graphql', 'websocket', 'webhook'],
+      choices: ['crud', 'resource', 'api', 'graphql', 'websocket'],
       default: 'crud',
     },
   ]);

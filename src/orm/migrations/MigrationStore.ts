@@ -1,3 +1,4 @@
+import { Env } from '@config/env';
 import { ErrorFactory } from '@exceptions/ZintrustError';
 import type { IDatabase } from '@orm/Database';
 import type { IDatabaseAdapter } from '@orm/DatabaseAdapter';
@@ -39,9 +40,21 @@ const hasMigrationsTableSupport = (
 
 const requireMigrationsTableSupport = (adapter: IDatabaseAdapter): (() => Promise<void>) => {
   if (!hasMigrationsTableSupport(adapter)) {
-    throw ErrorFactory.createCliError(
-      'Migrations tracking is not supported for this database adapter yet.'
-    );
+    const isSqlProxyEnabled =
+      Env.getBool('USE_POSTGRES_PROXY', false) ||
+      Env.getBool('USE_MYSQL_PROXY', false) ||
+      Env.getBool('USE_SQLSERVER_PROXY', false) ||
+      Env.get('POSTGRES_PROXY_URL', '').trim() !== '' ||
+      Env.get('MYSQL_PROXY_URL', '').trim() !== '' ||
+      Env.get('SQLSERVER_PROXY_URL', '').trim() !== '';
+
+    const hint = isSqlProxyEnabled
+      ? 'If you are using SQL proxy adapters, ensure the proxy stack is running (e.g. `zin cp up` or `docker compose -f docker-compose.proxy.yml up -d`).'
+      : undefined;
+
+    let message = 'Migrations tracking is not supported for this database adapter yet.';
+    if (hint) message = `${message} ${hint}`;
+    throw ErrorFactory.createCliError(message);
   }
 
   return async (): Promise<void> => {
@@ -55,6 +68,15 @@ export const MigrationStore = Object.freeze({
 
     const adapter = db.getAdapterInstance(false);
     const ensure = requireMigrationsTableSupport(adapter);
+
+    // getAdapterInstance(false) returns a raw adapter without going through Database.query()
+    // which auto-connects; ensure we're connected before creating the migrations table.
+    if (typeof (db as unknown as { connect?: unknown }).connect === 'function') {
+      await (db as unknown as { connect: () => Promise<void> }).connect();
+    } else if (typeof (adapter as unknown as { connect?: unknown }).connect === 'function') {
+      await (adapter as unknown as { connect: () => Promise<void> }).connect();
+    }
+
     await ensure();
   },
 

@@ -175,6 +175,7 @@ const createDatabaseStore = (params: {
         const payload: Record<string, unknown> = {
           jti: key.id,
           sub: key.sub ?? null,
+          user_id: key.sub ?? null,
           expires_at_ms: key.expiresAtMs,
         };
         if (existing) {

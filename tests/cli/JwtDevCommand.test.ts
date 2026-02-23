@@ -1,4 +1,5 @@
 import { JwtManager } from '@/security/JwtManager';
+import crypto from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 
 type ExitFn = typeof process.exit;
@@ -21,12 +22,31 @@ describe('CLI JwtDevCommand', () => {
     process.env['JWT_ALGORITHM'] = 'HS256';
 
     vi.resetModules();
+
+    vi.doMock('@security/JwtSessions', () => ({
+      JwtSessions: {
+        register: vi.fn().mockResolvedValue(undefined),
+      },
+    }));
+
     const { CLI } = await import('@/cli/CLI');
 
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
 
     const cli = CLI.create();
-    await cli.run(['jwt:dev', '--sub', '1', '--email', 'dev@example.com', '--role', 'admin']);
+    await cli.run([
+      'jwt:dev',
+      '--sub',
+      '1',
+      '--email',
+      'dev@example.com',
+      '--role',
+      'admin',
+      '--device-id',
+      'dev-123',
+      '--tenant-id',
+      'tenant-456',
+    ]);
 
     const outputLines = logSpy.mock.calls.map((c) => String(c[0] ?? ''));
     const token = findJwtLikeLine(outputLines);
@@ -38,6 +58,8 @@ describe('CLI JwtDevCommand', () => {
     expect(payload.sub).toBe('1');
     expect(payload['email']).toBe('dev@example.com');
     expect(payload['role']).toBe('admin');
+    expect(payload['deviceId']).toBe('dev-123');
+    expect(payload['tenantId']).toBe('tenant-456');
 
     logSpy.mockRestore();
   });
@@ -48,6 +70,13 @@ describe('CLI JwtDevCommand', () => {
     process.env['JWT_ALGORITHM'] = 'HS256';
 
     vi.resetModules();
+
+    vi.doMock('@security/JwtSessions', () => ({
+      JwtSessions: {
+        register: vi.fn().mockResolvedValue(undefined),
+      },
+    }));
+
     const { CLI } = await import('@/cli/CLI');
 
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
@@ -83,6 +112,13 @@ describe('CLI JwtDevCommand', () => {
     process.env['JWT_ALGORITHM'] = 'RS256';
 
     vi.resetModules();
+
+    vi.doMock('@security/JwtSessions', () => ({
+      JwtSessions: {
+        register: vi.fn().mockResolvedValue(undefined),
+      },
+    }));
+
     const { CLI } = await import('@/cli/CLI');
 
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
@@ -101,6 +137,13 @@ describe('CLI JwtDevCommand', () => {
     process.env['JWT_ALGORITHM'] = 'HS256';
 
     vi.resetModules();
+
+    vi.doMock('@security/JwtSessions', () => ({
+      JwtSessions: {
+        register: vi.fn().mockResolvedValue(undefined),
+      },
+    }));
+
     const { CLI } = await import('@/cli/CLI');
 
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
@@ -112,5 +155,70 @@ describe('CLI JwtDevCommand', () => {
     await expect(cli.run(['jwt:dev'])).rejects.toThrow(/process\.exit:1|process\.exit:2/);
 
     exitSpy.mockRestore();
+  });
+
+  it('computes uaHash from --ua when --ua-hash is not provided', async () => {
+    process.env['NODE_ENV'] = 'development';
+    process.env['JWT_SECRET'] = 'test-jwt-secret';
+    process.env['JWT_ALGORITHM'] = 'HS256';
+
+    vi.resetModules();
+
+    vi.doMock('@security/JwtSessions', () => ({
+      JwtSessions: {
+        register: vi.fn().mockResolvedValue(undefined),
+      },
+    }));
+
+    const { CLI } = await import('@/cli/CLI');
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const cli = CLI.create();
+    await cli.run(['jwt:dev', '--sub', '1', '--ua', 'unit-test-ua']);
+
+    const outputLines = logSpy.mock.calls.map((c) => String(c[0] ?? ''));
+    const token = findJwtLikeLine(outputLines);
+
+    const jwt = JwtManager.create();
+    jwt.setHmacSecret('test-jwt-secret');
+    const payload = jwt.verify(token, 'HS256') as Record<string, unknown>;
+
+    const expectedUaHash = crypto.createHash('sha256').update('unit-test-ua').digest('hex');
+    expect(payload['uaHash']).toBe(expectedUaHash);
+
+    logSpy.mockRestore();
+  });
+
+  it('uses --ua-hash when provided (overrides --ua)', async () => {
+    process.env['NODE_ENV'] = 'development';
+    process.env['JWT_SECRET'] = 'test-jwt-secret';
+    process.env['JWT_ALGORITHM'] = 'HS256';
+
+    vi.resetModules();
+
+    vi.doMock('@security/JwtSessions', () => ({
+      JwtSessions: {
+        register: vi.fn().mockResolvedValue(undefined),
+      },
+    }));
+
+    const { CLI } = await import('@/cli/CLI');
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const cli = CLI.create();
+    await cli.run(['jwt:dev', '--sub', '1', '--ua', 'should-not-be-used', '--ua-hash', 'deadbeef']);
+
+    const outputLines = logSpy.mock.calls.map((c) => String(c[0] ?? ''));
+    const token = findJwtLikeLine(outputLines);
+
+    const jwt = JwtManager.create();
+    jwt.setHmacSecret('test-jwt-secret');
+    const payload = jwt.verify(token, 'HS256') as Record<string, unknown>;
+
+    expect(payload['uaHash']).toBe('deadbeef');
+
+    logSpy.mockRestore();
   });
 });

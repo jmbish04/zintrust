@@ -57,6 +57,30 @@ describe('MigrationStore', () => {
     expect(ensureMigrationsTable).toHaveBeenCalledTimes(1);
   });
 
+  it('ensureTable attempts to connect via db.connect or adapter.connect when available', async () => {
+    const { MigrationStore } = await import('@orm/migrations/MigrationStore');
+
+    const ensureMigrationsTable = vi.fn(async () => undefined);
+    const dbConnect = vi.fn(async () => undefined);
+    const db1 = {
+      getType: () => 'postgresql',
+      connect: dbConnect,
+      getAdapterInstance: () => ({ ensureMigrationsTable }),
+    } as any;
+
+    await MigrationStore.ensureTable(db1);
+    expect(dbConnect).toHaveBeenCalledTimes(1);
+
+    const adapterConnect = vi.fn(async () => undefined);
+    const db2 = {
+      getType: () => 'postgresql',
+      getAdapterInstance: () => ({ connect: adapterConnect, ensureMigrationsTable }),
+    } as any;
+
+    await MigrationStore.ensureTable(db2);
+    expect(adapterConnect).toHaveBeenCalledTimes(1);
+  });
+
   it('getLastCompletedBatch returns 0 when max_batch is not a finite number', async () => {
     const { MigrationStore } = await import('@orm/migrations/MigrationStore');
     const db = {

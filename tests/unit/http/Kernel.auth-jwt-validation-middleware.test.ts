@@ -25,6 +25,12 @@ vi.mock('@config/middleware', () => ({
   },
 }));
 
+vi.mock('@security/JwtSessions', () => ({
+  JwtSessions: {
+    isActive: vi.fn().mockResolvedValue(true),
+  },
+}));
+
 vi.mock('@core-routes/Router', async () => {
   const actual = await vi.importActual<typeof import('@core-routes/Router')>('@core-routes/Router');
   return {

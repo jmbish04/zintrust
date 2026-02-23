@@ -176,6 +176,7 @@ export type {
   JwtOptions,
   JwtPayload,
 } from '@security/JwtManager';
+export { JwtSessions } from '@security/JwtSessions';
 export { PasswordResetTokenBroker } from '@security/PasswordResetTokenBroker';
 export type {
   IPasswordResetTokenBroker,

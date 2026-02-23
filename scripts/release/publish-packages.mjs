@@ -113,7 +113,9 @@ async function assertCoreShimHasRequiredExports() {
 
   const requiredTokens = [
     'export declare const NodeSingletons: any;',
-    'export declare namespace NodeSingletons {}',
+    'export declare namespace NodeSingletons {',
+    'export const fs: any;',
+    'export namespace fs {',
     'export declare const MultipartParserRegistry: any;',
     'export type UploadedFile = any;',
     'export type MultipartFieldValue = any;',
@@ -382,7 +384,17 @@ export declare const Queue: any;
 export declare const Broadcast: any;
 export declare const Notification: any;
 export declare const NodeSingletons: any;
-export declare namespace NodeSingletons {}
+export declare namespace NodeSingletons {
+  export const fs: any;
+  export namespace fs {
+    export type ReadStream = any;
+    export type WriteStream = any;
+  }
+  export const path: any;
+  export const os: any;
+  export declare function randomBytes(size: number): any;
+  export declare function createHash(algorithm: string): any;
+}
 export declare const RedisKeys: any;
 export declare const MIME_TYPES: any;
 export declare const appConfig: any;
@@ -474,7 +486,17 @@ export const Router = {};
 export const Queue = {};
 export const Broadcast = {};
 export const Notification = {};
-export const NodeSingletons = {};
+export const NodeSingletons = {
+  fs: {},
+  path: {},
+  os: {},
+  randomBytes() {
+    return { toString() { return ''; } };
+  },
+  createHash() {
+    return { update() { return this; }, digest() { return ''; } };
+  },
+};
 export const RedisKeys = {};
 export const MIME_TYPES = {};
 export const appConfig = {};

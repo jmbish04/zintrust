@@ -17,7 +17,7 @@ describe('CsrfMiddleware helpers and middleware behavior', () => {
 
     const { CsrfMiddleware } = await import('@middleware/CsrfMiddleware');
 
-    const mw = CsrfMiddleware.create({ skipPaths: ['/api/*', '/webhooks/hook'] });
+    const mw = CsrfMiddleware.create({ skipPaths: ['/api/*', '/integrations/hook'] });
 
     let next = false;
     const req: any = { getPath: () => '/api/foo' };

@@ -16,6 +16,7 @@ Useful helpers:
 - `npm run docker:logs` — tail app logs
 - `npm run docker:shell` — open a shell in the app container
 - `npm run docker:test` — run tests inside the container
+- `npm run docker:prune` — reclaim disk space (removes unused images/cache/volumes)
 - `npm run docker:down` / `npm run docker:stop`
 
 ## Container Workers CLI (cw)
@@ -194,13 +195,13 @@ Keep them enabled in production unless your platform constraints require disabli
 
 The root `Dockerfile` is multi-stage:
 
-1. **builder** (`node:20-bookworm-slim`)
+1. **builder** (`node:20-alpine`)
 
 - installs build tooling (`python3`, `make`, `g++`) for native modules like `bcrypt`
 - runs `npm ci`
 - runs `npm run build:dk` to produce `dist/`
 
-2. **runtime** (`node:20-bookworm-slim`)
+2. **runtime** (`node:20-alpine`)
 
 - installs only production dependencies (`npm ci --omit=dev`)
 - copies `dist/` from the builder stage

@@ -264,5 +264,12 @@ const loadNodeTemplate = (
   templateName: ErrorTemplateName
 ): string | undefined => {
   const templatePath = resolveTemplatePath(publicRoot, templateName);
-  return safeReadTemplate(templatePath) ?? DEFAULT_TEMPLATES[templateName];
+
+  const loaded = safeReadTemplate(templatePath);
+  const resolved = loaded ?? DEFAULT_TEMPLATES[templateName];
+  if (resolved !== undefined) {
+    // Cache after first successful resolve to avoid repeated filesystem access.
+    setTemplateInStore(templateName, resolved);
+  }
+  return resolved;
 };

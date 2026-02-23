@@ -93,6 +93,6 @@ describe('ControllerGenerator extra tests', () => {
     expect(types).toContain('crud');
     expect(types).toContain('api');
     expect(types).toContain('graphql');
-    expect(types).toContain('webhook');
+    expect(types).toContain('websocket');
   });
 });

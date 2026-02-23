@@ -5,6 +5,7 @@
 
 import { AddCommand } from '@cli/commands/AddCommand';
 import { BroadcastWorkCommand } from '@cli/commands/BroadcastWorkCommand';
+import { BulletproofKeyGenerateCommand } from '@cli/commands/BulletproofKeyGenerateCommand';
 import { ConfigCommand } from '@cli/commands/ConfigCommand';
 import { ContainerProxiesCommand } from '@cli/commands/ContainerProxiesCommand';
 import { ContainerWorkersCommand } from '@cli/commands/ContainerWorkersCommand';
@@ -138,6 +139,7 @@ const buildCommandRegistry = (): Array<Command | CommandProvider> => {
     QACommand(),
     FixCommand.create(),
     KeyGenerateCommand.create(),
+    BulletproofKeyGenerateCommand.create(),
     SimulateCommand,
     TemplatesCommand,
     MakeMailTemplateCommand.create(),

@@ -2,6 +2,11 @@
 
 import { vi } from 'vitest';
 
+// JWT session allowlist is enforced by middleware; in tests we default to an in-memory store.
+if (!process.env['JWT_SESSION_DRIVER']) {
+  process.env['JWT_SESSION_DRIVER'] = 'memory';
+}
+
 vi.mock('@zintrust/workers', () => ({
   createQueueWorker: () => ({
     processOne: async () => true,
