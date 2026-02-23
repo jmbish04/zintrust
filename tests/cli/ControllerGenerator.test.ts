@@ -222,7 +222,7 @@ describe('ControllerGenerator API and GraphQL', () => {
   });
 });
 
-describe('ControllerGenerator WebSocket and Webhook', () => {
+describe('ControllerGenerator WebSocket', () => {
   const testControllersDir = path.join(process.cwd(), 'tests', 'tmp', 'controllers');
 
   beforeEach(async () => {
@@ -261,64 +261,6 @@ describe('ControllerGenerator WebSocket and Webhook', () => {
   });
 });
 
-describe('ControllerGenerator Webhook', () => {
-  const testControllersDir = path.join(process.cwd(), 'tests', 'tmp', 'controllers');
-
-  beforeEach(async () => {
-    // Create directory before each test
-    try {
-      await fs.mkdir(testControllersDir, { recursive: true });
-      // eslint-disable-next-line no-empty
-    } catch {}
-  });
-
-  afterEach(async () => {
-    // Clean up after each test
-    try {
-      await fs.rm(testControllersDir, { recursive: true, force: true });
-      // eslint-disable-next-line no-empty
-    } catch {}
-  });
-
-  it('should generate Webhook controller', async () => {
-    const options: ControllerOptions = {
-      name: 'WebhookController',
-      controllerPath: testControllersDir,
-      type: 'webhook',
-    };
-
-    const result = await ControllerGenerator.generateController(options);
-
-    expect(result.success).toBe(true);
-
-    const controllerFile = path.join(testControllersDir, 'WebhookController.ts');
-    const content = await fs.readFile(controllerFile, 'utf-8');
-
-    expect(content).toContain('verifySignature(');
-    expect(content).toContain('processWebhook(');
-    expect(content).toContain('x-webhook-signature');
-  });
-
-  it('should include error handling in CRUD controller', async () => {
-    const options: ControllerOptions = {
-      name: 'UserController',
-      controllerPath: testControllersDir,
-      type: 'crud',
-      model: 'User',
-      withErrorHandling: true,
-    };
-
-    const result = await ControllerGenerator.generateController(options);
-
-    expect(result.success).toBe(true);
-
-    const controllerFile = path.join(testControllersDir, 'UserController.ts');
-    const content = await fs.readFile(controllerFile, 'utf-8');
-
-    expect(content).toContain('handleError(');
-  });
-});
-
 describe('ControllerGenerator Metadata', () => {
   it('should list all available controller types', () => {
     const types = ControllerGenerator.getAvailableTypes();
@@ -327,7 +269,6 @@ describe('ControllerGenerator Metadata', () => {
     expect(types).toContain('api');
     expect(types).toContain('graphql');
     expect(types).toContain('websocket');
-    expect(types).toContain('webhook');
   });
 });
 

@@ -30,7 +30,7 @@ export {
   getPublicRootAsync,
 } from '@core-routes/publicRoot';
 
-const PUBLIC_ROOT_CACHE_TTL_MS = 3000000000; //50 minutes, effectively caching for the duration of typical dev sessions
+const PUBLIC_ROOT_CACHE_TTL_MS = 3000000000; // 50 minutes, can be adjusted as needed
 let cachedPublicRoot: { value: string; expiresAt: number } | null = null;
 
 const getCachedPublicRootAsync = async (): Promise<string> => {

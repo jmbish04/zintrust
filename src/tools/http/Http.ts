@@ -26,6 +26,8 @@ export interface IHttpRequest {
   asJson(): IHttpRequest;
   asForm(): IHttpRequest;
   send(): Promise<IHttpResponse>;
+  sendRaw(): Promise<Response>;
+  sendStream(): Promise<{ response: Response; stream: ReadableStream<Uint8Array> | null }>;
 }
 
 /**
@@ -46,6 +48,28 @@ interface RequestState {
  * Perform the actual request for a given state. Separated to keep the builder small
  */
 async function performRequest(state: RequestState): Promise<IHttpResponse> {
+  const { response, bodyText, durationMs } = await performRequestRaw(state);
+
+  Logger.debug(`HTTP ${state.method} ${state.url}`, {
+    status: response.status,
+    duration: `${durationMs}ms`,
+    size: bodyText.length,
+  });
+
+  return createHttpResponse(response, bodyText);
+}
+
+async function performRequestRaw(
+  state: RequestState
+): Promise<{ response: Response; bodyText: string; durationMs: number }> {
+  const { response, durationMs } = await performFetch(state);
+  const bodyText = await response.text();
+  return { response, bodyText, durationMs };
+}
+
+async function performFetch(
+  state: RequestState
+): Promise<{ response: Response; durationMs: number }> {
   const timeout = state.timeout ?? Env.getInt('HTTP_TIMEOUT', 30000);
   const controller = new AbortController();
 
@@ -80,16 +104,8 @@ async function performRequest(state: RequestState): Promise<IHttpResponse> {
     const init = buildInit();
     const startTime = Date.now();
     const response = await globalThis.fetch(state.url, init);
-    const responseBody = await response.text();
     const duration = Date.now() - startTime;
-
-    Logger.debug(`HTTP ${state.method} ${state.url}`, {
-      status: response.status,
-      duration: `${duration}ms`,
-      size: responseBody.length,
-    });
-
-    return createHttpResponse(response, responseBody);
+    return { response, durationMs: duration };
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       throw ErrorFactory.createConnectionError(`HTTP request timeout after ${timeout}ms`, {
@@ -114,11 +130,11 @@ async function performRequest(state: RequestState): Promise<IHttpResponse> {
 /**
  * Create request builder with fluent API
  */
-const createRequestBuilder = (
+function createRequestBuilder(
   method: string,
   url: string,
   initialBody?: Record<string, unknown> | null
-): IHttpRequest => {
+): IHttpRequest {
   const state: RequestState = {
     method,
     url,
@@ -170,10 +186,20 @@ const createRequestBuilder = (
     async send(): Promise<IHttpResponse> {
       return performRequest(state);
     },
+
+    async sendRaw(): Promise<Response> {
+      const { response } = await performFetch(state);
+      return response;
+    },
+
+    async sendStream(): Promise<{ response: Response; stream: ReadableStream<Uint8Array> | null }> {
+      const { response } = await performFetch(state);
+      return { response, stream: response.body };
+    },
   };
 
   return self;
-};
+}
 
 /**
  * HTTP Client - Sealed namespace for making HTTP requests

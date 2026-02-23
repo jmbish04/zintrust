@@ -155,6 +155,83 @@ describe('patch coverage: JwtSessions', () => {
     expect(JwtSessions.getDriver()).toBe('memory');
   });
 
+  it('memory driver: expired registrations should not bloat logoutAll work', async () => {
+    vi.resetModules();
+
+    mockEnvModule();
+    mockWorkersModule();
+
+    vi.doMock('@config/logger', () => ({
+      Logger: {
+        debug: vi.fn(),
+      },
+    }));
+
+    const now = Date.now();
+    vi.doMock('@security/JwtManager', () => ({
+      JwtManager: {
+        create: () => ({
+          decode: (token: string) => {
+            if (token.startsWith('expired:')) {
+              return {
+                exp: Math.floor((now - 60_000) / 1000),
+                jti: token,
+                sub: 'u-exp',
+              };
+            }
+
+            return {
+              exp: Math.floor((now + 60_000) / 1000),
+              jti: token,
+              sub: 'u-exp',
+            };
+          },
+        }),
+      },
+    }));
+
+    vi.doMock('@config/security', () => ({
+      securityConfig: {
+        jwt: {
+          expiresIn: 60,
+        },
+      },
+    }));
+
+    const env = makeEnv({ JWT_SESSION_DRIVER: 'memory' });
+    for (const [k, v] of Object.entries(env)) process.env[k] = v;
+
+    const { JwtSessions } = await import('@/security/JwtSessions');
+    JwtSessions._resetForTests();
+
+    // Register many expired tokens first. Each new register triggers cleanup of prior entries.
+    for (let i = 0; i < 200; i++) {
+      // eslint-disable-next-line no-await-in-loop
+      await JwtSessions.register(`expired:${i}`);
+    }
+
+    // Register one active token to force a final cleanup pass.
+    await JwtSessions.register('active:1');
+    expect(await JwtSessions.isActive('active:1')).toBe(true);
+
+    // Count Map.delete calls during logoutAll. If subIndex retains expired ids, this will be large.
+    const originalDelete = Map.prototype.delete;
+    let deleteCalls = 0;
+    Map.prototype.delete = function (key: unknown): boolean {
+      deleteCalls += 1;
+      return originalDelete.call(this, key);
+    };
+
+    try {
+      await JwtSessions.logoutAll('u-exp');
+    } finally {
+      Map.prototype.delete = originalDelete;
+    }
+
+    // Should be small; allow some slack for internal map operations.
+    expect(deleteCalls).toBeLessThan(50);
+  });
+
   it('database driver: upsert/exists/expiry delete paths', async () => {
     vi.resetModules();
 

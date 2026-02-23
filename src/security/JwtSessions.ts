@@ -93,27 +93,50 @@ const resolveKey = (token: string): SessionKey => {
 const createMemoryStore = (): JwtSessionsStore => {
   const active = new Map<string, number>();
   const subIndex = new Map<string, Set<string>>();
+  const idToSub = new Map<string, string>();
+
+  const indexDelete = (id: string): void => {
+    const sub = idToSub.get(id);
+    if (sub === undefined) return;
+
+    const set = subIndex.get(sub);
+    if (set !== undefined) {
+      set.delete(id);
+      if (set.size === 0) {
+        subIndex.delete(sub);
+      }
+    }
+
+    idToSub.delete(id);
+  };
+
+  const indexAdd = (sub: string | undefined, id: string): void => {
+    if (typeof sub !== 'string' || sub.trim() === '') {
+      indexDelete(id);
+      return;
+    }
+
+    const key = sub.trim();
+
+    // If this id was previously indexed under another subject, remove it.
+    const previous = idToSub.get(id);
+    if (previous !== undefined && previous !== key) {
+      indexDelete(id);
+    }
+
+    const existing = subIndex.get(key) ?? new Set<string>();
+    existing.add(id);
+    subIndex.set(key, existing);
+    idToSub.set(id, key);
+  };
 
   const cleanupExpired = (): void => {
     const now = Date.now();
     for (const [id, expiresAtMs] of active.entries()) {
       if (expiresAtMs <= now) {
         active.delete(id);
+        indexDelete(id);
       }
-    }
-  };
-
-  const indexAdd = (sub: string | undefined, id: string): void => {
-    if (typeof sub !== 'string' || sub.trim() === '') return;
-    const key = sub.trim();
-    const existing = subIndex.get(key) ?? new Set<string>();
-    existing.add(id);
-    subIndex.set(key, existing);
-  };
-
-  const indexDelete = (id: string): void => {
-    for (const set of subIndex.values()) {
-      set.delete(id);
     }
   };
 
@@ -147,6 +170,7 @@ const createMemoryStore = (): JwtSessionsStore => {
       if (!ids) return;
       for (const id of ids.values()) {
         active.delete(id);
+        idToSub.delete(id);
       }
       subIndex.delete(key);
       await Promise.resolve();

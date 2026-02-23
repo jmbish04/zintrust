@@ -379,56 +379,45 @@ const createQueryHandlers = (
   execute(sql: string, parameters?: unknown[], isRead?: boolean): Promise<QueryResult>;
   transaction<T>(callback: (db: IDatabase) => Promise<T>): Promise<T>;
 } => {
+  let registryChecked = false;
+
+  const assertRegistryReady = (): void => {
+    if (registryChecked) return;
+    registryChecked = true;
+
+    const registry = DatabaseAdapterRegistry.list();
+    if (registry.length === 0) {
+      throw ErrorFactory.createConfigError(
+        'No database adapters are registered. Call DatabaseAdapterRegistry.register() during startup to register database adapters.'
+      );
+    }
+  };
+
   return {
     async query(sql: string, parameters: unknown[] = [], isRead = false) {
       if (connected.value === false) await db.connect();
       const adapter = getAdapter(isRead);
-      const registry = DatabaseAdapterRegistry.list();
-
-      // Validate that database adapters are registered
-      if (registry.length === 0) {
-        throw ErrorFactory.createConfigError(
-          'No database adapters are registered. Call DatabaseAdapterRegistry.register() during startup to register database adapters.'
-        );
-      }
+      assertRegistryReady();
 
       return executeQuery(adapter, eventEmitter, sql, parameters, 'query');
     },
     async queryOne(sql: string, parameters: unknown[] = [], isRead = false) {
       if (connected.value === false) await db.connect();
       const adapter = getAdapter(isRead);
-
-      // Validate that database adapters are registered
-      if (DatabaseAdapterRegistry.list().length === 0) {
-        throw ErrorFactory.createConfigError(
-          'No database adapters are registered. Call DatabaseAdapterRegistry.register() during startup to register database adapters.'
-        );
-      }
+      assertRegistryReady();
 
       return executeQueryOne(adapter, eventEmitter, sql, parameters);
     },
     async execute(sql: string, parameters: unknown[] = [], isRead = false) {
       if (connected.value === false) await db.connect();
       const adapter = getAdapter(isRead);
-
-      // Validate that database adapters are registered
-      if (DatabaseAdapterRegistry.list().length === 0) {
-        throw ErrorFactory.createConfigError(
-          'No database adapters are registered. Call DatabaseAdapterRegistry.register() during startup to register database adapters.'
-        );
-      }
+      assertRegistryReady();
 
       return executeFullQuery(adapter, eventEmitter, sql, parameters);
     },
     async transaction<T>(callback: (db: IDatabase) => Promise<T>) {
       if (connected.value === false) await db.connect();
-
-      // Validate that database adapters are registered
-      if (DatabaseAdapterRegistry.list().length === 0) {
-        throw ErrorFactory.createConfigError(
-          'No database adapters are registered. Call DatabaseAdapterRegistry.register() during startup to register database adapters.'
-        );
-      }
+      assertRegistryReady();
 
       return writeAdapter.transaction(async () => callback(db));
     },

@@ -7,7 +7,7 @@ import { FileGenerator } from '@cli/scaffolding/FileGenerator';
 import { Logger } from '@config/logger';
 import * as path from '@node-singletons/path';
 
-export type ControllerType = 'crud' | 'resource' | 'api' | 'graphql' | 'websocket' | 'webhook';
+export type ControllerType = 'crud' | 'resource' | 'api' | 'graphql' | 'websocket';
 
 export interface ControllerOptions {
   name: string; // e.g., "UserController"
@@ -35,7 +35,6 @@ const CONTROLLER_TYPES: Record<ControllerType, (options?: ControllerOptions) => 
   api: (options) => generateApiController(options),
   graphql: (options) => generateGraphQLController(options),
   websocket: (options) => generateWebSocketController(options),
-  webhook: (options) => generateWebhookController(options),
 };
 
 /**
@@ -136,8 +135,6 @@ function buildControllerCode(options: ControllerOptions, type: ControllerType): 
     return generateGraphQLController(options);
   } else if (type === 'websocket') {
     return generateWebSocketController(options);
-  } else if (type === 'webhook') {
-    return generateWebhookController(options);
   }
 
   return '';
@@ -456,6 +453,14 @@ const controller = Object.freeze({\n  ...Controller,
         return;
       }
 
+      // Secure-by-default: generated scaffold does not execute GraphQL until implemented.
+      res.setStatus(501).json({
+        error: 'Not Implemented',
+        message:
+          'GraphQL execution is not implemented in this generated controller. Implement executeQuery() and wire a GraphQL engine before enabling this endpoint.',
+      });
+      return;
+
       const body = req.getBody() as Record<string, unknown>;
       const query = body.query as string;
 
@@ -535,84 +540,6 @@ export const ${className} = Object.freeze({
 });
 
 export default ${className};
-`;
-}
-
-/**
- * Generate Webhook controller
- */
-function generateWebhookController(options?: ControllerOptions): string {
-  const className = options?.name ?? 'WebhookController';
-
-  return `/**
- * ${className}
- * Auto-generated Webhook controller
- */
-
-import { type IRequest, type IResponse, Controller } from '@zintrust/core';
-import { Logger } from '@config/logger';
-
-function handleError(res: IResponse, error: unknown): void {
-  const message = error instanceof Error ? error.message : 'Webhook error';
-  res.setStatus(500).json({ error: message });
-}
-
-const controller = Object.freeze({\n  ...Controller,
-${buildWebhookControllerBody()},
-});
-
-export type ${className}Api = typeof controller;
-
-export const ${className} = Object.freeze({
-  create(): ${className}Api {
-    return controller;
-  },
-});
-
-export default ${className};
-`;
-}
-
-/**
- * Build Webhook controller body
- */
-function buildWebhookControllerBody(): string {
-  return `  /**
-   * Handle incoming webhook
-   */
-  async handle(req: IRequest, res: IResponse): Promise<void> {
-    try {
-      // Verify webhook signature
-      const signature = req.getHeader('x-webhook-signature');
-      if (controller.verifySignature(req, signature as string) === false) {
-        res.setStatus(401).json({ error: 'Invalid signature' });
-        return;
-      }
-
-      const body = req.getBody();
-      await controller.processWebhook(body);
-
-      res.json({ success: true });
-    } catch (error) {
-      handleError(res, error);
-    }
-  },
-
-  /**
-   * Verify webhook signature
-   */
-   verifySignature(req: IRequest, signature: string): boolean {
-    // TODO: Implement signature verification
-    return true;
-  },
-
-  /**
-   * Process webhook payload
-   */
-  async processWebhook(payload: unknown): Promise<void> {
-    // TODO: Implement webhook processing
-    Logger.info('Processing webhook:', { payload });
-  },
 `;
 }
 

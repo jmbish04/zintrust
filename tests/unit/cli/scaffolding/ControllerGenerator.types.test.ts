@@ -22,20 +22,5 @@ describe('ControllerGenerator type outputs', () => {
     await fsPromises.rm(tmp, { recursive: true, force: true });
   });
 
-  it('generates a webhook controller file successfully', async () => {
-    const tmp = path.join(process.cwd(), `tests/tmp/cg-webhook-${Date.now()}`);
-    await fsPromises.mkdir(tmp, { recursive: true });
-
-    const res = await generateController({
-      name: 'WebhookController',
-      controllerPath: tmp,
-      type: 'webhook',
-    });
-    expect(res.success).toBe(true);
-    const file = path.join(tmp, 'WebhookController.ts');
-    const txt = await fsPromises.readFile(file, 'utf8');
-    expect(txt).toContain('WebhookController');
-
-    await fsPromises.rm(tmp, { recursive: true, force: true });
-  });
+  // Webhook controller scaffolding removed: receiver webhooks are not part of core.
 });

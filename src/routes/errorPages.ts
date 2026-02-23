@@ -15,10 +15,19 @@ import type { IResponse } from '@http/Response';
 import * as fs from '@node-singletons/fs';
 import * as path from '@node-singletons/path';
 
+let cachedCandidateRoots: { cwd: string; roots: string[] } | null = null;
+
 const getCandidatePublicRoots = (): string[] => {
-  const roots = [path.join(process.cwd(), 'public'), ...getFrameworkPublicRoots()];
+  const cwd = process.cwd();
+  if (cachedCandidateRoots !== null && cachedCandidateRoots.cwd === cwd) {
+    return cachedCandidateRoots.roots;
+  }
+
+  const roots = [path.join(cwd, 'public'), ...getFrameworkPublicRoots()];
   const unique = new Set(roots.map((root) => root.trim()).filter((root) => root !== ''));
-  return [...unique];
+  const resolved = [...unique];
+  cachedCandidateRoots = { cwd, roots: resolved };
+  return resolved;
 };
 
 const pathExistsAsync = async (candidate: string): Promise<boolean> => {
