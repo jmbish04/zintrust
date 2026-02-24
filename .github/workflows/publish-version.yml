@@ -89,6 +89,7 @@ jobs:
 
           export PORT=7777
           export NODE_ENV=development
+          export DB_CONNECTION=sqlite
           export WORKER_ENABLED=false
           export WORKER_AUTO_START=false
           export QUEUE_DRIVER=sync
