@@ -4,7 +4,7 @@
  * Uses native Node.js crypto module (zero external dependencies)
  */
 
-import { securityConfig } from '@/config';
+import { securityConfig } from '@config/security';
 import { ErrorFactory } from '@exceptions/ZintrustError';
 import { createHmac, createSign, createVerify, randomBytes } from '@node-singletons/crypto';
 import type { AuthorizationHeader } from '@security/JwtSessions';
