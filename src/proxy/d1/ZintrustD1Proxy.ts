@@ -1,4 +1,4 @@
-import { ErrorFactory } from '@exceptions/ZintrustError';
+import { Logger } from '@config/logger';
 
 type D1ProxyModule = {
   ZintrustD1Proxy?: Record<string, unknown>;
@@ -16,11 +16,12 @@ const load = async (): Promise<D1ProxyModule> => {
     cached = (await import(MODULE_ID)) as unknown as D1ProxyModule;
     return cached;
   } catch (error) {
-    throw ErrorFactory.createConfigError(
+    Logger.error(
       `Optional dependency not installed: ${MODULE_ID}. Install it to use ZintrustD1Proxy.`,
       { error: error instanceof Error ? error.message : String(error) }
     );
   }
+  return undefined as unknown as D1ProxyModule;
 };
 
 // Proxy surface that defers loading until first usage.
@@ -35,9 +36,9 @@ export const ZintrustD1Proxy = new Proxy(
         const target = mod.ZintrustD1Proxy ?? (mod.default as Record<string, unknown> | undefined);
 
         if (!target || typeof target !== 'object') {
-          throw ErrorFactory.createConfigError(
-            `Invalid module export from ${MODULE_ID}: missing ZintrustD1Proxy`
-          );
+          Logger.error(`Invalid module export from ${MODULE_ID}: missing ZintrustD1Proxy`);
+
+          return undefined;
         }
 
         const value = target[prop as never];

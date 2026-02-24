@@ -1,4 +1,4 @@
-import { ErrorFactory } from '@exceptions/ZintrustError';
+import { Logger } from '@config/logger';
 
 type KvProxyModule = {
   ZintrustKvProxy?: Record<string, unknown>;
@@ -16,11 +16,12 @@ const load = async (): Promise<KvProxyModule> => {
     cached = (await import(MODULE_ID)) as unknown as KvProxyModule;
     return cached;
   } catch (error) {
-    throw ErrorFactory.createConfigError(
+    Logger.error(
       `Optional dependency not installed: ${MODULE_ID}. Install it to use ZintrustKvProxy.`,
       { error: error instanceof Error ? error.message : String(error) }
     );
   }
+  return undefined as unknown as KvProxyModule;
 };
 
 export const ZintrustKvProxy = new Proxy(
@@ -34,9 +35,9 @@ export const ZintrustKvProxy = new Proxy(
         const target = mod.ZintrustKvProxy ?? (mod.default as Record<string, unknown> | undefined);
 
         if (!target || typeof target !== 'object') {
-          throw ErrorFactory.createConfigError(
-            `Invalid module export from ${MODULE_ID}: missing ZintrustKvProxy`
-          );
+          Logger.error(`Invalid module export from ${MODULE_ID}: missing ZintrustKvProxy`);
+
+          return undefined;
         }
 
         const value = target[prop as never];
