@@ -143,7 +143,6 @@ export default defineConfig({
         'src/cli/index.ts',
         'src/cli/scaffolding/index.ts',
         'src/common/index.ts',
-        'src/config/index.ts',
         'src/database/migrations/index.ts',
         'src/middleware/index.ts',
         'src/node-singletons/index.ts',

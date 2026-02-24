@@ -80,16 +80,12 @@ jobs:
 
           cd "$WORKDIR/smoke-app"
 
-          # Ensure the generated project uses this build artifact.
-          node - <<'NODE'
-          import fs from 'node:fs';
-          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-          pkg.dependencies = pkg.dependencies ?? {};
-          pkg.dependencies['@zintrust/core'] = 'file:../../dist';
-          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-          NODE
+          # Install the locally built framework package (dist/) into the fresh app.
+          npm install --no-audit --no-fund "$ROOT/dist" || \
+            npm install --no-audit --no-fund --legacy-peer-deps "$ROOT/dist"
 
-          npm install --no-audit --no-fund
+          # Install the rest of the scaffolded dependencies.
+          npm install --no-audit --no-fund || npm install --no-audit --no-fund --legacy-peer-deps
 
           export PORT=7777
           export NODE_ENV=development
