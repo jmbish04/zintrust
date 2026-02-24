@@ -1,0 +1,97 @@
+name: Publish Smoke Gate
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: publish-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build_and_smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build dist
+        run: npm run -s core:build:dist
+
+      - name: Smoke test fresh scaffold + cold start
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ROOT="$PWD"
+          WORKDIR="$RUNNER_TEMP/zintrust-smoke"
+          rm -rf "$WORKDIR"
+          mkdir -p "$WORKDIR"
+          cd "$WORKDIR"
+
+          # Scaffold a brand-new app without prompts/installs.
+          node "$ROOT/dist/bin/zin.js" new smoke-app \
+            --template basic \
+            --database sqlite \
+            --port 7777 \
+            --no-interactive \
+            --no-install \
+            --no-git \
+            --force
+
+          cd "$WORKDIR/smoke-app"
+
+          # Ensure the generated project uses this PR/build artifact (not the registry).
+          node - <<'NODE'
+          import fs from 'node:fs';
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          pkg.dependencies = pkg.dependencies ?? {};
+          pkg.dependencies['@zintrust/core'] = 'file:../../dist';
+          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          NODE
+
+          npm install --no-audit --no-fund
+
+          # Start server (no-watch) and verify /health.
+          export PORT=7777
+          export NODE_ENV=development
+          export WORKER_ENABLED=false
+          export WORKER_AUTO_START=false
+          export QUEUE_DRIVER=sync
+
+          node ./node_modules/@zintrust/core/bin/zin.js start --no-watch > server.log 2>&1 &
+          PID=$!
+
+          cleanup() {
+            kill "$PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          for i in {1..60}; do
+            if curl -fsS "http://127.0.0.1:7777/health" >/dev/null; then
+              echo "Smoke OK"
+              exit 0
+            fi
+            sleep 0.25
+          done
+
+          echo "Smoke FAILED: /health never became ready"
+          echo "---- server.log (tail) ----"
+          tail -n 200 server.log || true
+          exit 1
