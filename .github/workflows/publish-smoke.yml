@@ -101,6 +101,8 @@ jobs:
           export NODE_ENV=development
           export DB_CONNECTION=sqlite
           export WORKER_ENABLED=false
+          export DEBUG=true
+          export LOG_LEVEL=debug
           export WORKER_AUTO_START=false
           export QUEUE_DRIVER=sync
           # Ensure tsx resolves paths using the scaffold app config, not any parent/core workspace tsconfig.
