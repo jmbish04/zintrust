@@ -80,7 +80,14 @@ jobs:
           echo "---- DEBUG: KV proxy head ----"
           sed -n '1,80p' ./node_modules/@zintrust/core/src/proxy/kv/ZintrustKvProxy.js || true
           echo "---- DEBUG: root index security exports ----"
-          sed -n '140,210p' ./node_modules/@zintrust/core/src/index.js || true
+          sed -n '70,130p' ./node_modules/@zintrust/core/src/index.js || true
+          echo "---- DEBUG: root index optional proxy exports ----"
+          if grep -n "ZintrustD1Proxy\|ZintrustKvProxy" ./node_modules/@zintrust/core/src/index.js; then
+            echo "Smoke FAILED: root index should not export ZintrustD1Proxy/ZintrustKvProxy"
+            exit 1
+          else
+            echo "OK: root index has no optional proxy exports"
+          fi
           echo "---- DEBUG: look for rewritten static package path ----"
           grep -n "packages/cloudflare-d1-proxy/src/index.js\|packages/cloudflare-kv-proxy/src/index.js" ./node_modules/@zintrust/core/src/proxy/d1/ZintrustD1Proxy.js ./node_modules/@zintrust/core/src/proxy/kv/ZintrustKvProxy.js || true
 
