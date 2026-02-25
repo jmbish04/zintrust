@@ -111,6 +111,8 @@
     "routes/**/*",
     "bin/**/*",
     "database/**/*",
+    "packages/cloudflare-d1-proxy/src/**/*",
+    "packages/cloudflare-kv-proxy/src/**/*",
     "packages/workers/src/**/*",
     "packages/workers/migrations/**/*.ts",
     "packages/queue-redis/src/**/*",
