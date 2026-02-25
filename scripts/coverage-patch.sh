@@ -24,4 +24,4 @@ echo "Patch coverage base: $BASE"
 
 npm run -s test:coverage
 # TODO: Re-enable --fail-on-uncovered after adding tests for schema/migration files
-npm run -s coverage:diff -- "$BASE" HEAD --treat-missing-as-uncovered --min-pct=$MIN_PCT
+npx --no-install tsx scripts/coverage-diff.ts "$BASE" HEAD --treat-missing-as-uncovered --min-pct=$MIN_PCT
