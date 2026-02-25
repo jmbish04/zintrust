@@ -245,6 +245,29 @@ let patchAttempted = false;
 let patchAfterFailureAttempted = false;
 let queueMonitorModulePromise: Promise<QueueMonitorModule> | undefined;
 let queueMonitorPatchAfterFailureAttempted = false;
+let workersResolverDiagnosticLogged = false;
+
+const resolvePackageEntryForDebug = (packageName: string): string | null => {
+  if (!isNodeRuntime()) return null;
+
+  try {
+    const require = createRequire(import.meta.url);
+    return require.resolve(packageName);
+  } catch {
+    return null;
+  }
+};
+
+const logWorkersResolverDiagnostics = (): void => {
+  if (workersResolverDiagnosticLogged) return;
+  workersResolverDiagnosticLogged = true;
+
+  Logger.warn('Workers module resolver diagnostics', {
+    cwd: process.cwd(),
+    workersEntry: resolvePackageEntryForDebug('@zintrust/workers'),
+    coreEntry: resolvePackageEntryForDebug('@zintrust/core'),
+  });
+};
 
 const applyInitialPatches = (): void => {
   if (patchAttempted) return;
@@ -318,6 +341,7 @@ export const loadWorkersModule = async (): Promise<WorkersModule> => {
     }
   }
 
+  logWorkersResolverDiagnostics();
   workersModulePromise ??= import('@zintrust/workers');
 
   try {
