@@ -78,6 +78,26 @@ console.log();
 
 const failed = [];
 
+const isCi = process.env.CI === 'true' || process.env.CI === '1';
+
+const getErrorText = (error) => {
+  const asString = (value) => {
+    if (value === undefined || value === null) return '';
+    if (typeof value === 'string') return value;
+    if (Buffer.isBuffer(value)) return value.toString('utf-8');
+    return String(value);
+  };
+
+  const message = asString(error?.message);
+  const stderr = asString(error?.stderr);
+  const stdout = asString(error?.stdout);
+  return `${message}\n${stderr}\n${stdout}`;
+};
+
+const isRegistryPolicyInstallError = (errorText) => {
+  return /\bE403\b|403\s+Forbidden|forbidden by your security policy/i.test(errorText);
+};
+
 ensureCoreDist();
 
 for (const pkg of selectedPackages) {
@@ -97,10 +117,23 @@ for (const pkg of selectedPackages) {
 
   try {
     if (hasDeps && !skipInstall) {
-      execSync('npm install --ignore-scripts --no-package-lock', {
-        cwd: pkgPath,
-        stdio: 'inherit',
-      });
+      try {
+        execSync('npm install --ignore-scripts --no-package-lock', {
+          cwd: pkgPath,
+          stdio: 'inherit',
+        });
+      } catch (installError) {
+        const errorText = getErrorText(installError);
+        const shouldContinueWithoutInstall = isCi && isRegistryPolicyInstallError(errorText);
+
+        if (!shouldContinueWithoutInstall) {
+          throw installError;
+        }
+
+        console.warn(
+          `⚠️  npm install blocked by registry/security policy for ${pkgJson.name}; continuing build without package-local install (CI fallback)`
+        );
+      }
     }
     // Check if package has build script
     if (pkgJson.scripts?.build) {
