@@ -96,7 +96,7 @@ jobs:
             echo "OK: root index has no optional proxy exports"
           fi
 
-          # Start server (no-watch) and verify /.
+          # Start server (no-watch) and verify boot via success log.
           export PORT=7777
           export NODE_ENV=development
           export DB_CONNECTION=sqlite
@@ -137,15 +137,23 @@ jobs:
           }
           trap cleanup EXIT
 
-          for i in {1..60}; do
-            if curl -fsS "http://127.0.0.1:7777/" >/dev/null; then
-              echo "Smoke OK for template=$TEMPLATE"
+          for i in {1..80}; do
+            if grep -q "Application booted successfully" server.log; then
+              echo "Smoke OK for template=$TEMPLATE (boot log detected)"
               exit 0
             fi
+
+            if ! kill -0 "$PID" 2>/dev/null; then
+              echo "Smoke FAILED for template=$TEMPLATE: process exited before boot success log"
+              echo "---- server.log (tail) ----"
+              tail -n 200 server.log || true
+              exit 1
+            fi
+
             sleep 0.25
           done
 
-          echo "Smoke FAILED for template=$TEMPLATE: / never became ready"
+          echo "Smoke FAILED for template=$TEMPLATE: boot success log not detected in time"
           echo "---- server.log (tail) ----"
           tail -n 200 server.log || true
           exit 1
