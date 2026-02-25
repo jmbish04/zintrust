@@ -17,7 +17,30 @@ interface ILogger {
 
 const isProduction = (): boolean => appConfig.isProduction();
 
-const getLogFormat = (): string => Env.get('LOG_FORMAT', 'text');
+const getEnvString = (key: string, fallback: string): string => {
+  const envGet = (Env as { get?: (k: string, f?: string) => string }).get;
+  if (typeof envGet !== 'function') return fallback;
+  try {
+    const value = envGet(key, fallback);
+    if (typeof value === 'string') return value;
+    if (value === null || value === undefined) return fallback;
+    return String(value);
+  } catch {
+    return fallback;
+  }
+};
+
+const getEnvBool = (key: string, fallback: boolean): boolean => {
+  const envGetBool = (Env as { getBool?: (k: string, f?: boolean) => boolean }).getBool;
+  if (typeof envGetBool !== 'function') return fallback;
+  try {
+    return envGetBool(key, fallback);
+  } catch {
+    return fallback;
+  }
+};
+
+const getLogFormat = (): string => getEnvString('LOG_FORMAT', 'text');
 const isJsonFormat = (value: unknown): value is 'json' => value === 'json';
 
 // Log level priority: lower means more verbose
@@ -30,7 +53,7 @@ const levelPriority: Record<string, number> = {
 };
 
 const getConfiguredLogLevel = (): LogLevel => {
-  const raw = Env.get('LOG_LEVEL', Env.LOG_LEVEL ?? 'debug')
+  const raw = getEnvString('LOG_LEVEL', Env.LOG_LEVEL ?? 'debug')
     .trim()
     .toLowerCase();
   if (raw === 'debug') return 'debug';
@@ -42,7 +65,7 @@ const getConfiguredLogLevel = (): LogLevel => {
 
 const shouldEmit = (level: LogLevel): boolean => {
   // If global disable, never emit
-  if (Env.getBool('DISABLE_LOGGING', false)) return false;
+  if (getEnvBool('DISABLE_LOGGING', false)) return false;
 
   // Respect configured LOG_LEVEL
   const configured = getConfiguredLogLevel();
@@ -51,10 +74,11 @@ const shouldEmit = (level: LogLevel): boolean => {
   return lp >= configuredLp;
 };
 
-const DEFAULT_SENSITIVE_FIELDS = Env.get('SENSITIVE_FIELDS', '')
+const DEFAULT_SENSITIVE_FIELDS = getEnvString('SENSITIVE_FIELDS', '')
   .split(',')
   .map((s) => s.trim().toLowerCase())
   .filter((s) => s.length > 0);
+
 const SENSITIVE_FIELDS = new Set<string>([
   'password',
   'token',
@@ -136,12 +160,12 @@ const getFileWriter = (): void => {
 
 const shouldLogToFile = (): boolean => {
   // Respect global disable
-  if (Env.getBool('DISABLE_LOGGING', false)) return false;
+  if (getEnvBool('DISABLE_LOGGING', false)) return false;
 
   // Prefer dynamic lookup so late-bound env (tests, some runtimes) is respected.
-  const channel = Env.get('LOG_CHANNEL', '').trim().toLowerCase();
+  const channel = getEnvString('LOG_CHANNEL', '').trim().toLowerCase();
   const channelWantsFile = channel === 'file' || channel === 'all';
-  if (!Env.getBool('LOG_TO_FILE', false) && !channelWantsFile) return false;
+  if (!getEnvBool('LOG_TO_FILE', false) && !channelWantsFile) return false;
   if (typeof process === 'undefined') return false;
   return true;
 };
