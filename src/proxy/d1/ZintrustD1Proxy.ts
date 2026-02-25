@@ -12,7 +12,8 @@ const load = async (): Promise<D1ProxyModule> => {
   if (cached !== null) return cached;
   try {
     // Non-literal specifier to avoid tsconfig path alias rewriting in dist builds.
-    cached = (await import('@zintrust/' + 'cloudflare-d1-proxy')) as unknown as D1ProxyModule;
+    const pkgName = '@zintrust/cloudflare-d1-proxy';
+    cached = (await import(pkgName)) as unknown as D1ProxyModule;
     return cached;
   } catch (error) {
     Logger.error(

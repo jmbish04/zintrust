@@ -6,7 +6,7 @@ type KvProxyModule = {
   default?: unknown;
 };
 
-const MODULE_ID = '@zintrust/' + 'cloudflare-kv-proxy';
+const MODULE_ID = '@zintrust/cloudflare-kv-proxy';
 
 let cached: KvProxyModule | null = null;
 
