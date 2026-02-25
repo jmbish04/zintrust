@@ -157,8 +157,7 @@ export { Schema, Validator } from '@validation/Validator';
 export type { ISchema, SchemaType } from '@validation/Validator';
 
 // Security
-export { ZintrustD1Proxy } from '@proxy/d1/ZintrustD1Proxy';
-export { ZintrustKvProxy } from '@proxy/kv/ZintrustKvProxy';
+
 export { CsrfTokenManager } from '@security/CsrfTokenManager';
 export type {
   CsrfTokenData,

@@ -68,6 +68,22 @@ jobs:
           # Install the rest of the scaffolded dependencies.
           npm install --no-audit --no-fund || npm install --no-audit --no-fund --legacy-peer-deps
 
+          echo "---- DEBUG: installed @zintrust/core resolution ----"
+          node -e "const fs=require('fs');const path='node_modules/@zintrust/core';console.log('realpath=',fs.realpathSync(path));const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));console.log('smoke-app @zintrust/core dep=',pkg.dependencies?.['@zintrust/core']);"
+          echo "---- DEBUG: core package.json ----"
+          cat ./node_modules/@zintrust/core/package.json | sed -n '1,80p'
+          echo "---- DEBUG: core proxy files ----"
+          ls -la ./node_modules/@zintrust/core/src/proxy/d1/ZintrustD1Proxy.js || true
+          ls -la ./node_modules/@zintrust/core/src/proxy/kv/ZintrustKvProxy.js || true
+          echo "---- DEBUG: D1 proxy head ----"
+          sed -n '1,80p' ./node_modules/@zintrust/core/src/proxy/d1/ZintrustD1Proxy.js || true
+          echo "---- DEBUG: KV proxy head ----"
+          sed -n '1,80p' ./node_modules/@zintrust/core/src/proxy/kv/ZintrustKvProxy.js || true
+          echo "---- DEBUG: root index security exports ----"
+          sed -n '140,210p' ./node_modules/@zintrust/core/src/index.js || true
+          echo "---- DEBUG: look for rewritten static package path ----"
+          grep -n "packages/cloudflare-d1-proxy/src/index.js\|packages/cloudflare-kv-proxy/src/index.js" ./node_modules/@zintrust/core/src/proxy/d1/ZintrustD1Proxy.js ./node_modules/@zintrust/core/src/proxy/kv/ZintrustKvProxy.js || true
+
           # Start server (no-watch) and verify /health.
           export PORT=7777
           export NODE_ENV=development
