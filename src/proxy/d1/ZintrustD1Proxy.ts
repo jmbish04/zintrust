@@ -33,6 +33,7 @@ export const ZintrustD1Proxy = new Proxy(
 
       return async (...args: unknown[]) => {
         const mod = await load();
+        if (!mod || typeof mod !== 'object') return undefined;
         const target = mod.ZintrustD1Proxy ?? (mod.default as Record<string, unknown> | undefined);
 
         if (!target || typeof target !== 'object') {

@@ -34,7 +34,7 @@ describe('Optional proxy exports (patch coverage)', () => {
     vi.doUnmock('@zintrust/cloudflare-d1-proxy');
   });
 
-  it('ZintrustD1Proxy: throws helpful error when optional module missing', async () => {
+  it('ZintrustD1Proxy: returns undefined and logs helpful error when optional module missing', async () => {
     vi.resetModules();
 
     vi.doMock('@zintrust/cloudflare-d1-proxy', () => {
@@ -43,7 +43,7 @@ describe('Optional proxy exports (patch coverage)', () => {
 
     const { ZintrustD1Proxy } = await import('@proxy/d1/ZintrustD1Proxy');
 
-    await expect((ZintrustD1Proxy as any).ping()).rejects.toThrow();
+    await expect((ZintrustD1Proxy as any).ping()).resolves.toBeUndefined();
 
     expect(loggerError).toHaveBeenCalledWith(
       expect.stringContaining('Optional dependency not installed: @zintrust/cloudflare-d1-proxy'),
@@ -91,7 +91,7 @@ describe('Optional proxy exports (patch coverage)', () => {
     vi.doUnmock('@zintrust/cloudflare-kv-proxy');
   });
 
-  it('ZintrustKvProxy: throws helpful error when optional module missing', async () => {
+  it('ZintrustKvProxy: returns undefined and logs helpful error when optional module missing', async () => {
     vi.resetModules();
 
     vi.doMock('@zintrust/cloudflare-kv-proxy', () => {
@@ -100,7 +100,7 @@ describe('Optional proxy exports (patch coverage)', () => {
 
     const { ZintrustKvProxy } = await import('@proxy/kv/ZintrustKvProxy');
 
-    await expect((ZintrustKvProxy as any).ping()).rejects.toThrow();
+    await expect((ZintrustKvProxy as any).ping()).resolves.toBeUndefined();
 
     expect(loggerError).toHaveBeenCalledWith(
       expect.stringContaining('Optional dependency not installed: @zintrust/cloudflare-kv-proxy'),
