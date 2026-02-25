@@ -18,6 +18,48 @@ const KNOWN_EXTENSIONS = ['.js', '.mjs', '.cjs', '.json', '.node'];
 const isNodeRuntime = (): boolean =>
   typeof process !== 'undefined' && Boolean(process.versions?.node);
 
+const readFlag = (name: string): string => {
+  if (!isNodeRuntime()) return '';
+  return String(process.env?.[name] ?? '')
+    .trim()
+    .toLowerCase();
+};
+
+const isTruthy = (value: string): boolean => value === '1' || value === 'true';
+
+const isFalsy = (value: string): boolean => value === '0' || value === 'false';
+
+const shouldDisableWorkerModules = (): boolean => {
+  const dockerWorker = readFlag('DOCKER_WORKER');
+  if (isTruthy(dockerWorker)) return true;
+
+  const workerEnabled = readFlag('WORKER_ENABLED');
+  if (isFalsy(workerEnabled)) return true;
+
+  return false;
+};
+
+const createDisabledWorkersModule = (): WorkersModule => {
+  return {
+    WorkerInit: {
+      initialize: async (): Promise<void> => {
+        await Promise.resolve();
+      },
+      autoStartPersistedWorkers: async (): Promise<void> => {
+        await Promise.resolve();
+      },
+    },
+    WorkerShutdown: {
+      shutdown: async (): Promise<void> => {
+        await Promise.resolve();
+      },
+      isShuttingDown: () => false,
+      getShutdownState: () => ({ isShuttingDown: false, completedAt: null }),
+    },
+    registerWorkerRoutes: () => undefined,
+  } as unknown as WorkersModule;
+};
+
 const listJsFilesRecursive = (dir: string): string[] => {
   const out: string[] = [];
   const stack: string[] = [dir];
@@ -261,6 +303,12 @@ const tryLocalFallback = async (): Promise<WorkersModule | null> => {
 };
 
 export const loadWorkersModule = async (): Promise<WorkersModule> => {
+  if (shouldDisableWorkerModules()) {
+    Logger.info('Skipping @zintrust/workers module import (workers disabled by env).');
+    workersModulePromise ??= Promise.resolve(createDisabledWorkersModule());
+    return workersModulePromise;
+  }
+
   applyInitialPatches();
 
   if (workersModulePromise === undefined) {
