@@ -4,7 +4,7 @@ describe('JwtManager.signAccessToken (patch coverage)', () => {
   it('signs HS256 token and includes subject when payload.sub is a string', async () => {
     vi.resetModules();
 
-    vi.doMock('@/config', () => ({
+    vi.doMock('@config/security', () => ({
       securityConfig: {
         jwt: {
           algorithm: 'HS256',
@@ -34,7 +34,7 @@ describe('JwtManager.signAccessToken (patch coverage)', () => {
   it('throws when configured for RS256 without RSA keys', async () => {
     vi.resetModules();
 
-    vi.doMock('@/config', () => ({
+    vi.doMock('@config/security', () => ({
       securityConfig: {
         jwt: {
           algorithm: 'RS256',

@@ -31,16 +31,36 @@ export { createRedisConnection } from '@config/workers';
  * Sealed namespace for immutability
  */
 export const config = Object.freeze({
-  app: appConfig,
-  broadcast: broadcastConfig,
-  database: databaseConfig,
-  storage: storageConfig,
-  notification: notificationConfig,
-  security: securityConfig,
-  middleware: middlewareConfig,
-  microservices: microservicesConfig,
-  cache: cacheConfig,
-  queue: queueConfig,
+  get middleware() {
+    return middlewareConfig;
+  },
+  get app() {
+    return appConfig;
+  },
+  get broadcast() {
+    return broadcastConfig;
+  },
+  get database() {
+    return databaseConfig;
+  },
+  get storage() {
+    return storageConfig;
+  },
+  get notification() {
+    return notificationConfig;
+  },
+  get security() {
+    return securityConfig;
+  },
+  get microservices() {
+    return microservicesConfig;
+  },
+  get cache() {
+    return cacheConfig;
+  },
+  get queue() {
+    return queueConfig;
+  },
 } as const);
 
 export type Config = typeof config;
