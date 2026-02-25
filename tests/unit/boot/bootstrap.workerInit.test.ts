@@ -1,9 +1,20 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('bootstrap useWorkerStarter path', () => {
+  const previousWorkerEnabled = process.env['WORKER_ENABLED'];
+
   beforeEach(() => {
     vi.resetModules();
     vi.restoreAllMocks();
+    process.env['WORKER_ENABLED'] = 'true';
+  });
+
+  afterEach(() => {
+    if (previousWorkerEnabled === undefined) {
+      delete process.env['WORKER_ENABLED'];
+      return;
+    }
+    process.env['WORKER_ENABLED'] = previousWorkerEnabled;
   });
 
   it('initializes worker management system and logs info', async () => {
