@@ -5,9 +5,9 @@ name: SonarQube Analysis
 
 on:
   push:
-    branches: [master]
+    branches: [dev]
   pull_request:
-    branches: [master]
+    branches: [dev]
   schedule:
     # Run every Sunday at 2 AM UTC
     - cron: '0 2 * * 0'
