@@ -51,7 +51,10 @@ const shouldEmit = (level: LogLevel): boolean => {
   return lp >= configuredLp;
 };
 
-// TODO developers should be able to customize sensitive fields via config
+const DEFAULT_SENSITIVE_FIELDS = Env.get('SENSITIVE_FIELDS', '')
+  .split(',')
+  .map((s) => s.trim().toLowerCase())
+  .filter((s) => s.length > 0);
 const SENSITIVE_FIELDS = new Set<string>([
   'password',
   'token',
@@ -61,6 +64,7 @@ const SENSITIVE_FIELDS = new Set<string>([
   'api_key',
   'jwt',
   'bearer',
+  ...DEFAULT_SENSITIVE_FIELDS,
 ]);
 
 const redactSensitiveData = (data: unknown): unknown => {

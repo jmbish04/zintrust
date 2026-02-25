@@ -8,11 +8,20 @@ import { isUndefinedOrNull } from '@/helper';
 import { User } from '@app/Models/User';
 import type { AuthControllerApi, JsonRecord, UserRow } from '@app/Types/controller';
 import { getString } from '@common/utility';
-import { Logger } from '@config/logger';
+import DefaultLogger, { Logger as NamedLogger } from '@config/logger';
 import type { IRequest } from '@http/Request';
 import type { IResponse } from '@http/Response';
 import { getValidatedBody } from '@http/ValidationHelper';
 import { JwtManager } from '@security/JwtManager';
+
+const Logger =
+  NamedLogger ??
+  DefaultLogger ??
+  Object.freeze({
+    info: (_message: string, _data?: unknown) => undefined,
+    warn: (_message: string, _data?: unknown) => undefined,
+    error: (_message: string, _data?: unknown) => undefined,
+  });
 
 const pickPublicUser = (row: UserRow): { id: unknown; name: string; email: string } => {
   return {
