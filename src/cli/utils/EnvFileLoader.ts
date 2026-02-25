@@ -212,7 +212,7 @@ const load = (options: LoadOptions = {}): LoadState => {
   return cached;
 };
 
-const ensureLoaded = (): LoadState => load({ overrideExisting: true });
+const ensureLoaded = (): LoadState => load({ overrideExisting: false });
 
 const applyCliOverrides = (overrides: CliOverrides): void => {
   // Ensure base env is loaded first.

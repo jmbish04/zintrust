@@ -134,7 +134,7 @@ describe('EnvFileLoader', () => {
     await project.dispose();
   });
 
-  it('CLI overrides win over .env (port, NODE_ENV, runtime)', async () => {
+  it('CLI overrides win while preserving existing OS env values (port, NODE_ENV, runtime)', async () => {
     const project = await createTempProject({
       '.env': ['NODE_ENV=dev', 'APP_PORT=7777', 'FOO=from_env'].join('\n'),
     });
@@ -148,7 +148,7 @@ describe('EnvFileLoader', () => {
 
     EnvFileLoader.applyCliOverrides({ port: 3012, nodeEnv: 'production', runtime: 'node' });
 
-    expect(process.env['FOO']).toBe('from_env');
+    expect(process.env['FOO']).toBe('from_os');
     expect(process.env['PORT']).toBe('3012');
     expect(process.env['APP_PORT']).toBe('3012');
     expect(process.env['NODE_ENV']).toBe('production');
