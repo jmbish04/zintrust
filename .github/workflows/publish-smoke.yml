@@ -94,6 +94,7 @@ jobs:
             exit 1
           else
             echo "OK: root index has no optional proxy exports"
+          fi
 
           # Start server (no-watch) and verify /.
           export PORT=7777
