@@ -195,7 +195,7 @@ const gracefulShutdown = async (signal: string): Promise<void> => {
 
 async function useWorkerStarter(): Promise<void> {
   // Check if workers are enabled in this environment
-  const workerEnabled = Env.getBool('WORKER_ENABLED', true);
+  const workerEnabled = Env.getBool('WORKER_ENABLED', false);
   if (!workerEnabled || appConfig.dockerWorker === true) {
     Logger.info(
       'Workers disabled in this runtime (WORKER_ENABLED=false && DOCKER_WORKER=true), skipping worker management initialization'
@@ -285,6 +285,7 @@ const BootstrapFunctions = Object.freeze({
       }
 
       Logger.debug('[bootstrap] start: failed', {
+        dockerWorker: appConfig.dockerWorker,
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
       });

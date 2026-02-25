@@ -1,8 +1,8 @@
-import { pathToFileURL } from '@/node-singletons/url';
 import { readEnvString } from '@common/ExternalServiceUtils';
 import { Logger } from '@config/logger';
 import { existsSync, readFile } from '@node-singletons/fs';
 import * as path from '@node-singletons/path';
+import { pathToFileURL } from '@node-singletons/url';
 
 type ImportResult =
   | { ok: true; loadedPath: string }
