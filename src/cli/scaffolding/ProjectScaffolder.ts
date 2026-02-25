@@ -4,6 +4,7 @@
  */
 
 import { EnvFileBackfill } from '@cli/env/EnvFileBackfill';
+import { EnvData } from '@cli/scaffolding/env';
 import { Logger } from '@config/logger';
 import { ErrorFactory } from '@exceptions/ZintrustError';
 import { randomBytes } from '@node-singletons/crypto';
@@ -160,53 +161,6 @@ const createProjectConfigFile = (
   }
 };
 
-const toSafeDbBasename = (raw: string): string => {
-  const trimmed = raw.trim();
-  if (trimmed === '') return 'zintrust';
-
-  const lower = trimmed.toLowerCase();
-  let out = '';
-  let prevWasDash = false;
-
-  for (const char of lower) {
-    const isAlphaNum = (char >= 'a' && char <= 'z') || (char >= '0' && char <= '9');
-    const isContent = isAlphaNum || char === '_';
-
-    if (isContent) {
-      out += char;
-      prevWasDash = false;
-      continue;
-    }
-
-    // Treat as separator: collapse dashes and avoid leading dash
-    if (out.length > 0 && !prevWasDash) {
-      out += '-';
-      prevWasDash = true;
-    }
-  }
-
-  if (out.endsWith('-')) {
-    out = out.slice(0, -1);
-  }
-
-  return out === '' ? 'zintrust' : out;
-};
-
-const readEnvScaffoldTemplate = (): string => {
-  const templateUrl = new URL('./templates/env.scaffold.dotenv.tpl', import.meta.url);
-  return fs.readFileSync(templateUrl, 'utf8');
-};
-
-const renderEnvScaffold = (template: string, vars: Record<string, string>): string => {
-  let out = template;
-  for (const [key, value] of Object.entries(vars)) {
-    out = out.replaceAll(`{{${key}}}`, value);
-  }
-  // Normalize: if a placeholder resolves to empty, prevent excessive blank blocks.
-  out = out.replaceAll('\n\n\n', '\n\n');
-  return out;
-};
-
 const buildDbOverrides = (dbConnection: string): { dbLines: string[] } => {
   const normalized = dbConnection.trim().toLowerCase();
 
@@ -278,8 +232,6 @@ const createEnvFile = (projectPath: string, variables: Record<string, unknown>):
     const baseUrl = `http://localhost:${port}`;
     const dbConnection = database.trim().toLowerCase();
 
-    const sqliteDbPath = `.zintrust/dbs/${toSafeDbBasename(name)}.sqlite`;
-
     // Generate a secure APP_KEY (32 bytes = 256-bit, base64 encoded)
     const appKeyBytes = randomBytes(32);
 
@@ -287,18 +239,7 @@ const createEnvFile = (projectPath: string, variables: Record<string, unknown>):
     const appKey = `base64:${appKeyBytes.toString('base64')}`;
 
     const { dbLines } = buildDbOverrides(dbConnection);
-    const dbLinesBlock = dbLines.join('\n');
-
-    const template = readEnvScaffoldTemplate();
-    const content = renderEnvScaffold(template, {
-      APP_NAME: name,
-      PORT: String(port),
-      BASE_URL: baseUrl,
-      APP_KEY: appKey,
-      DB_CONNECTION: dbConnection,
-      SQLITE_DB_PATH: sqliteDbPath,
-      DB_LINES: dbLinesBlock,
-    });
+    const content = EnvData(name, port, baseUrl, appKey, dbConnection, dbLines).join('\n');
 
     fs.writeFileSync(fullPath, content.endsWith('\n') ? content : content + '\n');
     return true;
