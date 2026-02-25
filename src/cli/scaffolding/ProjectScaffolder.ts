@@ -204,6 +204,37 @@ const buildDbOverrides = (dbConnection: string): { dbLines: string[] } => {
   return { dbLines: [] };
 };
 
+const toSafeDbBasename = (raw: string): string => {
+  const trimmed = raw.trim();
+  if (trimmed === '') return 'zintrust';
+
+  const lower = trimmed.toLowerCase();
+  let out = '';
+  let prevWasDash = false;
+
+  for (const char of lower) {
+    const isAlphaNum = (char >= 'a' && char <= 'z') || (char >= '0' && char <= '9');
+    const isContent = isAlphaNum || char === '_';
+
+    if (isContent) {
+      out += char;
+      prevWasDash = false;
+      continue;
+    }
+
+    if (out.length > 0 && !prevWasDash) {
+      out += '-';
+      prevWasDash = true;
+    }
+  }
+
+  if (out.endsWith('-')) {
+    out = out.slice(0, -1);
+  }
+
+  return out === '' ? 'zintrust' : out;
+};
+
 const createEnvFile = (projectPath: string, variables: Record<string, unknown>): boolean => {
   try {
     if (!fs.existsSync(projectPath)) {
@@ -231,6 +262,7 @@ const createEnvFile = (projectPath: string, variables: Record<string, unknown>):
 
     const baseUrl = `http://localhost:${port}`;
     const dbConnection = database.trim().toLowerCase();
+    const sqliteDbPath = `.zintrust/dbs/${toSafeDbBasename(name)}.sqlite`;
 
     // Generate a secure APP_KEY (32 bytes = 256-bit, base64 encoded)
     const appKeyBytes = randomBytes(32);
@@ -239,7 +271,9 @@ const createEnvFile = (projectPath: string, variables: Record<string, unknown>):
     const appKey = `base64:${appKeyBytes.toString('base64')}`;
 
     const { dbLines } = buildDbOverrides(dbConnection);
-    const content = EnvData(name, port, baseUrl, appKey, dbConnection, dbLines).join('\n');
+    const content = EnvData(name, port, baseUrl, appKey, dbConnection, dbLines, sqliteDbPath).join(
+      '\n'
+    );
 
     fs.writeFileSync(fullPath, content.endsWith('\n') ? content : content + '\n');
     return true;

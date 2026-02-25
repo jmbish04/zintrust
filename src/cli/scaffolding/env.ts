@@ -137,7 +137,11 @@ const SecurityAndDeployment = (): string[] => [
   '',
 ];
 
-const DatabaseAndCloudflare = (databaseNormalized: string, dbLines: string[]): string[] => [
+const DatabaseAndCloudflare = (
+  databaseNormalized: string,
+  dbLines: string[],
+  sqliteDbPath: string
+): string[] => [
   '# ============================================================================',
   '# DATABASE',
   '# ============================================================================',
@@ -145,6 +149,7 @@ const DatabaseAndCloudflare = (databaseNormalized: string, dbLines: string[]): s
   '# Options: sqlite | postgresql | mysql | sqlserver | d1 | d1-remote',
   `DB_CONNECTION=${databaseNormalized}`,
   '',
+  ...(databaseNormalized === 'sqlite' ? [`DB_PATH=${sqliteDbPath}`, ''] : []),
   ...dbLines,
   '',
   '# Generic SQL defaults (used by some adapters)',
@@ -441,7 +446,7 @@ const LoggingAndMail = (): string[] => [
   'MAIL_HOST=',
   'MAIL_PORT=587',
   'MAIL_USERNAME=',
-  'MAIL_PASSWORD=',
+  'MAIL_PASSWORD',
   'MAIL_SECURE=starttls',
   'SENDGRID_API_KEY=',
   'MAILGUN_API_KEY=',
@@ -550,11 +555,12 @@ export const EnvData = (
   baseUrl: string,
   appKey: string,
   databaseNormalized: string,
-  dbLines: string[]
+  dbLines: string[],
+  sqliteDbPath: string
 ): string[] => [
   ...HeaderAndApp(name, port, baseUrl, appKey),
   ...SecurityAndDeployment(),
-  ...DatabaseAndCloudflare(databaseNormalized, dbLines),
+  ...DatabaseAndCloudflare(databaseNormalized, dbLines, sqliteDbPath),
   ...HttpProxies(),
   ...CacheAndRedis(),
   ...QueueConfig(),
