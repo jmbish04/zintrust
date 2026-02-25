@@ -94,11 +94,8 @@ jobs:
             exit 1
           else
             echo "OK: root index has no optional proxy exports"
-          fi
-          echo "---- DEBUG: look for rewritten static package path ----"
-          grep -n "packages/cloudflare-d1-proxy/src/index.js\|packages/cloudflare-kv-proxy/src/index.js" ./node_modules/@zintrust/core/src/proxy/d1/ZintrustD1Proxy.js ./node_modules/@zintrust/core/src/proxy/kv/ZintrustKvProxy.js || true
 
-          # Start server (no-watch) and verify /health.
+          # Start server (no-watch) and verify /.
           export PORT=7777
           export NODE_ENV=development
           export DB_CONNECTION=sqlite
@@ -136,14 +133,14 @@ jobs:
           trap cleanup EXIT
 
           for i in {1..60}; do
-            if curl -fsS "http://127.0.0.1:7777/health" >/dev/null; then
+            if curl -fsS "http://127.0.0.1:7777/" >/dev/null; then
               echo "Smoke OK for template=$TEMPLATE"
               exit 0
             fi
             sleep 0.25
           done
 
-          echo "Smoke FAILED for template=$TEMPLATE: /health never became ready"
+          echo "Smoke FAILED for template=$TEMPLATE: / never became ready"
           echo "---- server.log (tail) ----"
           tail -n 200 server.log || true
           exit 1
