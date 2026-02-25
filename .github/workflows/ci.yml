@@ -50,8 +50,8 @@ jobs:
         env:
           HUSKY: 0
 
-      - name: Build project
-        run: npm run build:ci
+      - name: Build core only
+        run: npm run core:build:dist
 
       - name: Validate dist package file constraints
         run: node scripts/ci/check-dist-package-files.mjs

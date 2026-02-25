@@ -39,8 +39,8 @@ jobs:
         env:
           HUSKY: 0
 
-      - name: Build project
-        run: npm run build
+      - name: Build core only
+        run: npm run core:build:dist
 
       - name: Run tests with coverage
         run: npm run test:coverage
