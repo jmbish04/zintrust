@@ -20,6 +20,10 @@ jobs:
   build_and_smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        template: [basic, api, microservice, fullstack]
 
     steps:
       - name: Checkout
@@ -42,6 +46,9 @@ jobs:
         run: |
           set -euo pipefail
 
+          TEMPLATE="${{ matrix.template }}"
+          APP_NAME="smoke-app-${TEMPLATE}"
+
           ROOT="$PWD"
           WORKDIR="$RUNNER_TEMP/zintrust-smoke"
           rm -rf "$WORKDIR"
@@ -49,8 +56,8 @@ jobs:
           cd "$WORKDIR"
 
           # Scaffold a brand-new app without prompts/installs.
-          node "$ROOT/dist/bin/zin.js" new smoke-app \
-            --template basic \
+          node "$ROOT/dist/bin/zin.js" new "$APP_NAME" \
+            --template "$TEMPLATE" \
             --database sqlite \
             --port 7777 \
             --no-interactive \
@@ -58,7 +65,7 @@ jobs:
             --no-git \
             --force
 
-          cd "$WORKDIR/smoke-app"
+          cd "$WORKDIR/$APP_NAME"
 
           # Install the locally built framework package (dist/) into the fresh app.
           # Avoid relative file:../../dist (it breaks because dist is under repo root, not WORKDIR).
@@ -69,7 +76,7 @@ jobs:
           npm install --no-audit --no-fund || npm install --no-audit --no-fund --legacy-peer-deps
 
           echo "---- DEBUG: installed @zintrust/core resolution ----"
-          node -e "const fs=require('fs');const path='node_modules/@zintrust/core';console.log('realpath=',fs.realpathSync(path));const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));console.log('smoke-app @zintrust/core dep=',pkg.dependencies?.['@zintrust/core']);"
+          node -e "const fs=require('fs');const p='node_modules/@zintrust/core';console.log('template=',process.env.SMOKE_TEMPLATE);console.log('app=',process.env.SMOKE_APP_NAME);console.log('realpath=',fs.realpathSync(p));const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));console.log('smoke-app @zintrust/core dep=',pkg.dependencies?.['@zintrust/core']);"
           echo "---- DEBUG: core package.json ----"
           cat ./node_modules/@zintrust/core/package.json | sed -n '1,80p'
           echo "---- DEBUG: core proxy files ----"
@@ -130,13 +137,16 @@ jobs:
 
           for i in {1..60}; do
             if curl -fsS "http://127.0.0.1:7777/health" >/dev/null; then
-              echo "Smoke OK"
+              echo "Smoke OK for template=$TEMPLATE"
               exit 0
             fi
             sleep 0.25
           done
 
-          echo "Smoke FAILED: /health never became ready"
+          echo "Smoke FAILED for template=$TEMPLATE: /health never became ready"
           echo "---- server.log (tail) ----"
           tail -n 200 server.log || true
           exit 1
+        env:
+          SMOKE_TEMPLATE: ${{ matrix.template }}
+          SMOKE_APP_NAME: smoke-app-${{ matrix.template }}
