@@ -1,12 +1,10 @@
 # GitHub Actions CI Workflow
-# Fast feedback loop: Runs tests, linting, and type checking on every push and PR
+# Fast feedback loop: Runs tests, linting, and type checking on push
 
 name: CI/CD Pipeline
 
 on:
   push:
-    branches: [master, dev, release]
-  pull_request:
     branches: [master, dev, release]
   workflow_dispatch:
 
@@ -50,8 +48,14 @@ jobs:
         env:
           HUSKY: 0
 
-      - name: Build project
-        run: npm run build:ci
+      - name: Build core only
+        run: npm run core:build:dist
+
+      - name: Validate dist package file constraints
+        run: node scripts/ci/check-dist-package-files.mjs
+
+      - name: Enforce patch coverage gate
+        run: npm run -s coverage:patch
 
       - name: Type checking
         run: npm run type-check

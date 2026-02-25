@@ -368,16 +368,17 @@ import { Env } from '@zintrust/core';
 
 ## Logging
 
-| Key                 | Default                | Description                                |
-| ------------------- | ---------------------- | ------------------------------------------ |
-| `LOG_LEVEL`         | `debug`/`info`/`error` | Log level (depends on `NODE_ENV`).         |
-| `LOG_FORMAT`        | `text`                 | Log format (text or json).                 |
-| `LOG_CHANNEL`       | empty                  | Log channel override (console/file/cloud). |
-| `DISABLE_LOGGING`   | `false`                | Disable logging entirely.                  |
-| `LOG_HTTP_REQUEST`  | `false`                | Enable request logging middleware.         |
-| `LOG_TO_FILE`       | `false`                | Enable file logging output.                |
-| `LOG_ROTATION_SIZE` | `10485760`             | Max log file size in bytes.                |
-| `LOG_ROTATION_DAYS` | `7`                    | Days to keep rotated logs.                 |
+| Key                 | Default                | Description                                   |
+| ------------------- | ---------------------- | --------------------------------------------- |
+| `LOG_LEVEL`         | `debug`/`info`/`error` | Log level (depends on `NODE_ENV`).            |
+| `LOG_FORMAT`        | `text`                 | Log format (text or json).                    |
+| `LOG_CHANNEL`       | empty                  | Log channel override (console/file/cloud).    |
+| `SENSITIVE_FIELDS`  | empty                  | Comma-separated extra keys to redact in logs. |
+| `DISABLE_LOGGING`   | `false`                | Disable logging entirely.                     |
+| `LOG_HTTP_REQUEST`  | `false`                | Enable request logging middleware.            |
+| `LOG_TO_FILE`       | `false`                | Enable file logging output.                   |
+| `LOG_ROTATION_SIZE` | `10485760`             | Max log file size in bytes.                   |
+| `LOG_ROTATION_DAYS` | `7`                    | Days to keep rotated logs.                    |
 
 ## ZinTrust tooling
 

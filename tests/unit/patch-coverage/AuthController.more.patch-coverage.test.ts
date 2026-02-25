@@ -21,6 +21,19 @@ const makeReqRes = (overrides: any = {}) => {
 };
 
 describe('AuthController extra branches', () => {
+  it('initializes with no-op logger fallback when logger exports are missing', async () => {
+    vi.resetModules();
+    vi.doMock('@config/logger', () => ({ default: undefined, Logger: undefined }));
+    vi.doMock('@http/ValidationHelper', () => ({ getValidatedBody: () => undefined }));
+
+    const { AuthController } = await import('@app/Controllers/AuthController');
+    const { req, res, calls } = makeReqRes();
+
+    await AuthController.create().login(req, res);
+    expect(calls.status).toBe(500);
+    expect(calls.payload).toEqual({ error: 'Internal server error' });
+  });
+
   it('login: returns 500 when validated body missing', async () => {
     vi.resetModules();
     vi.doMock('@http/ValidationHelper', () => ({ getValidatedBody: () => undefined }));

@@ -21,6 +21,147 @@ beforeEach(() => {
 });
 
 describe('Logger additional branches', () => {
+  it('redacts custom fields from SENSITIVE_FIELDS env', async () => {
+    vi.resetModules();
+    const logSpy = vi.spyOn(globalThis.console, 'log').mockImplementation(() => undefined);
+
+    vi.doMock('@config/env', () => ({
+      Env: {
+        LOG_LEVEL: 'debug',
+        get: (key: string, fallback?: string) => {
+          if (key === 'LOG_FORMAT') return 'json';
+          if (key === 'SENSITIVE_FIELDS') return 'ssn,credit_card';
+          return fallback ?? '';
+        },
+        getBool: (_key: string, fallback?: boolean) => Boolean(fallback),
+      },
+    }));
+
+    const { Logger } = await import('@config/logger');
+    Logger.info('custom-redaction', {
+      ssn: '123-45-6789',
+      credit_card: '4111111111111111',
+      visible: 'ok',
+    });
+
+    const raw = (logSpy.mock.calls[0]?.[0] ?? '') as string;
+    const parsed = JSON.parse(raw) as { data: Record<string, string> };
+
+    expect(parsed.data['ssn']).toBe('[REDACTED]');
+    expect(parsed.data['credit_card']).toBe('[REDACTED]');
+    expect(parsed.data['visible']).toBe('ok');
+
+    logSpy.mockRestore();
+    vi.doUnmock('@config/env');
+  });
+
+  it('updates SENSITIVE_FIELDS dynamically and ignores malformed entries', async () => {
+    vi.resetModules();
+    const logSpy = vi.spyOn(globalThis.console, 'log').mockImplementation(() => undefined);
+    let sensitiveFields = 'custom_one, invalid key, ???';
+
+    vi.doMock('@config/env', () => ({
+      Env: {
+        LOG_LEVEL: 'debug',
+        get: (key: string, fallback?: string) => {
+          if (key === 'LOG_FORMAT') return 'json';
+          if (key === 'SENSITIVE_FIELDS') return sensitiveFields;
+          return fallback ?? '';
+        },
+        getBool: (_key: string, fallback?: boolean) => Boolean(fallback),
+      },
+    }));
+
+    const { Logger } = await import('@config/logger');
+
+    Logger.info('dynamic-redaction-1', {
+      custom_one: 'secret-a',
+      custom_two: 'visible-a',
+      'invalid key': 'visible-invalid',
+    });
+
+    sensitiveFields = 'custom_two';
+
+    Logger.info('dynamic-redaction-2', {
+      custom_one: 'visible-b',
+      custom_two: 'secret-b',
+    });
+
+    const first = JSON.parse((logSpy.mock.calls[0]?.[0] ?? '') as string) as {
+      data: Record<string, string>;
+    };
+    const second = JSON.parse((logSpy.mock.calls[1]?.[0] ?? '') as string) as {
+      data: Record<string, string>;
+    };
+
+    expect(first.data['custom_one']).toBe('[REDACTED]');
+    expect(first.data['custom_two']).toBe('visible-a');
+    expect(first.data['invalid key']).toBe('visible-invalid');
+
+    expect(second.data['custom_one']).toBe('visible-b');
+    expect(second.data['custom_two']).toBe('[REDACTED]');
+
+    logSpy.mockRestore();
+    vi.doUnmock('@config/env');
+  });
+
+  it('handles Env.get non-string and null values via fallback/string conversion', async () => {
+    const logSpy = vi.spyOn(globalThis.console, 'log').mockImplementation(() => undefined);
+
+    vi.resetModules();
+    vi.doMock('@config/env', () => ({
+      Env: {
+        LOG_LEVEL: 'debug',
+        get: (key: string, fallback?: string) => (key === 'LOG_FORMAT' ? 123 : fallback),
+        getBool: (_key: string, fallback?: boolean) => Boolean(fallback),
+      },
+    }));
+
+    const { Logger } = await import('@config/logger');
+    Logger.info('coerce non-string LOG_FORMAT');
+
+    vi.resetModules();
+    vi.doMock('@config/env', () => ({
+      Env: {
+        LOG_LEVEL: 'debug',
+        get: (_key: string, _fallback?: string) => null,
+        getBool: (_key: string, fallback?: boolean) => Boolean(fallback),
+      },
+    }));
+
+    const { Logger: LoggerNull } = await import('@config/logger');
+    LoggerNull.info('fallback when Env.get returns null');
+
+    expect(logSpy).toHaveBeenCalled();
+    logSpy.mockRestore();
+    vi.doUnmock('@config/env');
+  });
+
+  it('falls back when Env.getBool throws', async () => {
+    vi.resetModules();
+    const logSpy = vi.spyOn(globalThis.console, 'log').mockImplementation(() => undefined);
+
+    vi.doMock('@config/env', () => ({
+      Env: {
+        LOG_LEVEL: 'debug',
+        get: (_key: string, fallback?: string) => fallback ?? 'text',
+        getBool: (key: string, fallback?: boolean) => {
+          if (key === 'DISABLE_LOGGING') {
+            throw new Error('boom');
+          }
+          return Boolean(fallback);
+        },
+      },
+    }));
+
+    const { Logger } = await import('@config/logger');
+    Logger.info('getBool throw fallback');
+
+    expect(logSpy).toHaveBeenCalled();
+    logSpy.mockRestore();
+    vi.doUnmock('@config/env');
+  });
+
   it('debug logs only in development', async () => {
     process.env.NODE_ENV = 'development';
 

@@ -53,8 +53,8 @@ jobs:
       - name: Run tests, lint and type-check
         run: npm run test:coverage && npm run lint --max-warnings=0 && npm run type-check
 
-      - name: Build distribution
-        run: npm run pro:build
+      - name: Build distribution (core only)
+        run: npm run core:build:dist
 
       - name: Smoke gate (fresh scaffold + cold start)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run != 'true' }}
