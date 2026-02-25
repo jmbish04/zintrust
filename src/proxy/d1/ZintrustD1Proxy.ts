@@ -6,19 +6,17 @@ type D1ProxyModule = {
   default?: unknown;
 };
 
-const MODULE_ID = '@zintrust/' + 'cloudflare-d1-proxy';
-
 let cached: D1ProxyModule | null = null;
 
 const load = async (): Promise<D1ProxyModule> => {
   if (cached !== null) return cached;
   try {
     // Non-literal specifier to avoid tsconfig path alias rewriting in dist builds.
-    cached = (await import(MODULE_ID)) as unknown as D1ProxyModule;
+    cached = (await import('@zintrust/' + 'cloudflare-d1-proxy')) as unknown as D1ProxyModule;
     return cached;
   } catch (error) {
     Logger.error(
-      `Optional dependency not installed: ${MODULE_ID}. Install it to use ZintrustD1Proxy.`,
+      `Optional dependency not installed: @zintrust/cloudflare-d1-proxy. Install it to use ZintrustD1Proxy.`,
       { error: error instanceof Error ? error.message : String(error) }
     );
   }
@@ -38,7 +36,9 @@ export const ZintrustD1Proxy = new Proxy(
         const target = mod.ZintrustD1Proxy ?? (mod.default as Record<string, unknown> | undefined);
 
         if (!target || typeof target !== 'object') {
-          Logger.error(`Invalid module export from ${MODULE_ID}: missing ZintrustD1Proxy`);
+          Logger.error(
+            `Invalid module export from @zintrust/cloudflare-d1-proxy: missing ZintrustD1Proxy`
+          );
 
           return undefined;
         }
