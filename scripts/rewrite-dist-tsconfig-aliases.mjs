@@ -14,6 +14,19 @@ const SPECIAL_PACKAGE_REWRITES = [
   },
 ];
 const NO_ALIAS_REWRITE_PREFIXES = SPECIAL_PACKAGE_REWRITES.map((rule) => rule.packageName);
+const NO_ALIAS_REWRITE_DYNAMIC_PREFIXES = ['@zintrust/cloudflare-'];
+
+function shouldSkipAliasRewrite(specifier) {
+  if (
+    NO_ALIAS_REWRITE_PREFIXES.some(
+      (prefix) => specifier === prefix || specifier.startsWith(`${prefix}/`)
+    )
+  ) {
+    return true;
+  }
+
+  return NO_ALIAS_REWRITE_DYNAMIC_PREFIXES.some((prefix) => specifier.startsWith(prefix));
+}
 
 function isFile(p) {
   try {
@@ -227,11 +240,7 @@ function rewriteSpecifier({ filePath, specifier, outDir, aliases }) {
   if (specifier.startsWith('./') || specifier.startsWith('../')) return null;
   if (specifier.startsWith('node:')) return null;
   if (specifier.startsWith('http:') || specifier.startsWith('https:')) return null;
-  if (
-    NO_ALIAS_REWRITE_PREFIXES.some(
-      (prefix) => specifier === prefix || specifier.startsWith(`${prefix}/`)
-    )
-  ) {
+  if (shouldSkipAliasRewrite(specifier)) {
     return null;
   }
 

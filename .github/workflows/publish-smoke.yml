@@ -98,9 +98,30 @@ jobs:
           export WORKER_ENABLED=false
           export WORKER_AUTO_START=false
           export QUEUE_DRIVER=sync
+          # Ensure tsx resolves paths using the scaffold app config, not any parent/core workspace tsconfig.
+          export TSX_TSCONFIG_PATH="$PWD/tsconfig.json"
+          echo "---- DEBUG: TSX_TSCONFIG_PATH=$TSX_TSCONFIG_PATH ----"
 
-          node ./node_modules/@zintrust/core/bin/zin.js start --no-watch > server.log 2>&1 &
+          (
+            echo "[smoke] TSX_TSCONFIG_PATH=$TSX_TSCONFIG_PATH"
+            node ./node_modules/@zintrust/core/bin/zin.js start --no-watch
+          ) > server.log 2>&1 &
           PID=$!
+
+          for i in {1..20}; do
+            if grep -q "\[smoke\] TSX_TSCONFIG_PATH=" server.log; then
+              echo "DEBUG OK: TSX_TSCONFIG_PATH captured in server.log"
+              break
+            fi
+            sleep 0.1
+          done
+
+          if ! grep -q "\[smoke\] TSX_TSCONFIG_PATH=" server.log; then
+            echo "Smoke FAILED: TSX_TSCONFIG_PATH not captured in server.log"
+            echo "---- server.log (tail) ----"
+            tail -n 100 server.log || true
+            exit 1
+          fi
 
           cleanup() {
             kill "$PID" 2>/dev/null || true
