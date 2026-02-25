@@ -21,6 +21,63 @@ beforeEach(() => {
 });
 
 describe('Logger additional branches', () => {
+  it('handles Env.get non-string and null values via fallback/string conversion', async () => {
+    const logSpy = vi.spyOn(globalThis.console, 'log').mockImplementation(() => undefined);
+
+    vi.resetModules();
+    vi.doMock('@config/env', () => ({
+      Env: {
+        LOG_LEVEL: 'debug',
+        get: (key: string, fallback?: string) => (key === 'LOG_FORMAT' ? 123 : fallback),
+        getBool: (_key: string, fallback?: boolean) => Boolean(fallback),
+      },
+    }));
+
+    const { Logger } = await import('@config/logger');
+    Logger.info('coerce non-string LOG_FORMAT');
+
+    vi.resetModules();
+    vi.doMock('@config/env', () => ({
+      Env: {
+        LOG_LEVEL: 'debug',
+        get: (_key: string, _fallback?: string) => null,
+        getBool: (_key: string, fallback?: boolean) => Boolean(fallback),
+      },
+    }));
+
+    const { Logger: LoggerNull } = await import('@config/logger');
+    LoggerNull.info('fallback when Env.get returns null');
+
+    expect(logSpy).toHaveBeenCalled();
+    logSpy.mockRestore();
+    vi.doUnmock('@config/env');
+  });
+
+  it('falls back when Env.getBool throws', async () => {
+    vi.resetModules();
+    const logSpy = vi.spyOn(globalThis.console, 'log').mockImplementation(() => undefined);
+
+    vi.doMock('@config/env', () => ({
+      Env: {
+        LOG_LEVEL: 'debug',
+        get: (_key: string, fallback?: string) => fallback ?? 'text',
+        getBool: (key: string, fallback?: boolean) => {
+          if (key === 'DISABLE_LOGGING') {
+            throw new Error('boom');
+          }
+          return Boolean(fallback);
+        },
+      },
+    }));
+
+    const { Logger } = await import('@config/logger');
+    Logger.info('getBool throw fallback');
+
+    expect(logSpy).toHaveBeenCalled();
+    logSpy.mockRestore();
+    vi.doUnmock('@config/env');
+  });
+
   it('debug logs only in development', async () => {
     process.env.NODE_ENV = 'development';
 
