@@ -107,10 +107,6 @@ const distPackage = {
       types: './src/node.d.ts',
       import: './src/node.js',
     },
-    './routes/*': {
-      types: './routes/*.d.ts',
-      import: './routes/*.js',
-    },
     './package.json': './package.json',
   },
   dependencies: rootPackage.dependencies,
@@ -121,10 +117,7 @@ const distPackage = {
     z: 'bin/z.js',
     zt: 'bin/zt.js',
   },
-  // NOTE: core runtime loads routes/config/app and some internal packages at runtime.
-  // If these are omitted, consumers can see ERR_MODULE_NOT_FOUND for paths under
-  // `@zintrust/core/packages/*` (e.g. cloudflare proxies).
-  files: ['bin', 'src', 'routes', 'config', 'app', 'packages', 'public'],
+  files: ['bin', 'src', 'public'],
   engines: rootPackage.engines,
   keywords: rootPackage.keywords,
   author: rootPackage.author,

@@ -20,6 +20,10 @@ jobs:
   build_and_smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        template: [basic, api, microservice, fullstack]
 
     steps:
       - name: Checkout
@@ -42,6 +46,9 @@ jobs:
         run: |
           set -euo pipefail
 
+          TEMPLATE="${{ matrix.template }}"
+          APP_NAME="smoke-app-${TEMPLATE}"
+
           ROOT="$PWD"
           WORKDIR="$RUNNER_TEMP/zintrust-smoke"
           rm -rf "$WORKDIR"
@@ -49,8 +56,8 @@ jobs:
           cd "$WORKDIR"
 
           # Scaffold a brand-new app without prompts/installs.
-          node "$ROOT/dist/bin/zin.js" new smoke-app \
-            --template basic \
+          node "$ROOT/dist/bin/zin.js" new "$APP_NAME" \
+            --template "$TEMPLATE" \
             --database sqlite \
             --port 7777 \
             --no-interactive \
@@ -58,7 +65,7 @@ jobs:
             --no-git \
             --force
 
-          cd "$WORKDIR/smoke-app"
+          cd "$WORKDIR/$APP_NAME"
 
           # Install the locally built framework package (dist/) into the fresh app.
           # Avoid relative file:../../dist (it breaks because dist is under repo root, not WORKDIR).
@@ -68,6 +75,29 @@ jobs:
           # Install the rest of the scaffolded dependencies.
           npm install --no-audit --no-fund || npm install --no-audit --no-fund --legacy-peer-deps
 
+          echo "---- DEBUG: installed @zintrust/core resolution ----"
+          node -e "const fs=require('fs');const p='node_modules/@zintrust/core';console.log('template=',process.env.SMOKE_TEMPLATE);console.log('app=',process.env.SMOKE_APP_NAME);console.log('realpath=',fs.realpathSync(p));const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));console.log('smoke-app @zintrust/core dep=',pkg.dependencies?.['@zintrust/core']);"
+          echo "---- DEBUG: core package.json ----"
+          cat ./node_modules/@zintrust/core/package.json | sed -n '1,80p'
+          echo "---- DEBUG: core proxy files ----"
+          ls -la ./node_modules/@zintrust/core/src/proxy/d1/ZintrustD1Proxy.js || true
+          ls -la ./node_modules/@zintrust/core/src/proxy/kv/ZintrustKvProxy.js || true
+          echo "---- DEBUG: D1 proxy head ----"
+          sed -n '1,80p' ./node_modules/@zintrust/core/src/proxy/d1/ZintrustD1Proxy.js || true
+          echo "---- DEBUG: KV proxy head ----"
+          sed -n '1,80p' ./node_modules/@zintrust/core/src/proxy/kv/ZintrustKvProxy.js || true
+          echo "---- DEBUG: root index security exports ----"
+          sed -n '70,130p' ./node_modules/@zintrust/core/src/index.js || true
+          echo "---- DEBUG: root index optional proxy exports ----"
+          if grep -n "ZintrustD1Proxy\|ZintrustKvProxy" ./node_modules/@zintrust/core/src/index.js; then
+            echo "Smoke FAILED: root index should not export ZintrustD1Proxy/ZintrustKvProxy"
+            exit 1
+          else
+            echo "OK: root index has no optional proxy exports"
+          fi
+          echo "---- DEBUG: look for rewritten static package path ----"
+          grep -n "packages/cloudflare-d1-proxy/src/index.js\|packages/cloudflare-kv-proxy/src/index.js" ./node_modules/@zintrust/core/src/proxy/d1/ZintrustD1Proxy.js ./node_modules/@zintrust/core/src/proxy/kv/ZintrustKvProxy.js || true
+
           # Start server (no-watch) and verify /health.
           export PORT=7777
           export NODE_ENV=development
@@ -75,9 +105,30 @@ jobs:
           export WORKER_ENABLED=false
           export WORKER_AUTO_START=false
           export QUEUE_DRIVER=sync
+          # Ensure tsx resolves paths using the scaffold app config, not any parent/core workspace tsconfig.
+          export TSX_TSCONFIG_PATH="$PWD/tsconfig.json"
+          echo "---- DEBUG: TSX_TSCONFIG_PATH=$TSX_TSCONFIG_PATH ----"
 
-          node ./node_modules/@zintrust/core/bin/zin.js start --no-watch > server.log 2>&1 &
+          (
+            echo "[smoke] TSX_TSCONFIG_PATH=$TSX_TSCONFIG_PATH"
+            node ./node_modules/@zintrust/core/bin/zin.js start --no-watch
+          ) > server.log 2>&1 &
           PID=$!
+
+          for i in {1..20}; do
+            if grep -q "\[smoke\] TSX_TSCONFIG_PATH=" server.log; then
+              echo "DEBUG OK: TSX_TSCONFIG_PATH captured in server.log"
+              break
+            fi
+            sleep 0.1
+          done
+
+          if ! grep -q "\[smoke\] TSX_TSCONFIG_PATH=" server.log; then
+            echo "Smoke FAILED: TSX_TSCONFIG_PATH not captured in server.log"
+            echo "---- server.log (tail) ----"
+            tail -n 100 server.log || true
+            exit 1
+          fi
 
           cleanup() {
             kill "$PID" 2>/dev/null || true
@@ -86,13 +137,16 @@ jobs:
 
           for i in {1..60}; do
             if curl -fsS "http://127.0.0.1:7777/health" >/dev/null; then
-              echo "Smoke OK"
+              echo "Smoke OK for template=$TEMPLATE"
               exit 0
             fi
             sleep 0.25
           done
 
-          echo "Smoke FAILED: /health never became ready"
+          echo "Smoke FAILED for template=$TEMPLATE: /health never became ready"
           echo "---- server.log (tail) ----"
           tail -n 200 server.log || true
           exit 1
+        env:
+          SMOKE_TEMPLATE: ${{ matrix.template }}
+          SMOKE_APP_NAME: smoke-app-${{ matrix.template }}
