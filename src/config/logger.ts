@@ -3,6 +3,7 @@
  * Sealed namespace pattern - all exports through Logger namespace
  * Replaces console.* calls throughout the codebase
  */
+import { isNonEmptyString } from '@/helper';
 import { appConfig } from '@config/app';
 import { Env } from '@config/env';
 import type { LogLevel } from '@config/type';
@@ -74,12 +75,7 @@ const shouldEmit = (level: LogLevel): boolean => {
   return lp >= configuredLp;
 };
 
-const DEFAULT_SENSITIVE_FIELDS = getEnvString('SENSITIVE_FIELDS', '')
-  .split(',')
-  .map((s) => s.trim().toLowerCase())
-  .filter((s) => s.length > 0);
-
-const SENSITIVE_FIELDS = new Set<string>([
+const BASE_SENSITIVE_FIELDS = Object.freeze([
   'password',
   'token',
   'authorization',
@@ -88,10 +84,32 @@ const SENSITIVE_FIELDS = new Set<string>([
   'api_key',
   'jwt',
   'bearer',
-  ...DEFAULT_SENSITIVE_FIELDS,
 ]);
 
+const SENSITIVE_FIELD_KEY_PATTERN = /^[a-z0-9_.-]+$/;
+
+const parseSensitiveFields = (rawValue: string): string[] => {
+  try {
+    return rawValue
+      .split(',')
+      .map((value) => value.trim().toLowerCase())
+      .filter((value) => isNonEmptyString(value) && SENSITIVE_FIELD_KEY_PATTERN.test(value));
+  } catch {
+    return [];
+  }
+};
+
+const getSensitiveFields = (): Set<string> => {
+  const configuredFieldsRaw = getEnvString('SENSITIVE_FIELDS', '');
+  const configuredFields = isNonEmptyString(configuredFieldsRaw)
+    ? parseSensitiveFields(configuredFieldsRaw)
+    : [];
+
+  return new Set<string>([...BASE_SENSITIVE_FIELDS, ...configuredFields]);
+};
+
 const redactSensitiveData = (data: unknown): unknown => {
+  const sensitiveFields = getSensitiveFields();
   const seen = new WeakSet<object>();
 
   const walk = (value: unknown): unknown => {
@@ -108,7 +126,7 @@ const redactSensitiveData = (data: unknown): unknown => {
 
       const out: Record<string, unknown> = {};
       for (const [key, inner] of Object.entries(asObj)) {
-        if (SENSITIVE_FIELDS.has(key.toLowerCase())) {
+        if (sensitiveFields.has(key.toLowerCase())) {
           out[key] = '[REDACTED]';
         } else {
           out[key] = walk(inner);

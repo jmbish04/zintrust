@@ -53,6 +53,12 @@ jobs:
       - name: Build project
         run: npm run build:ci
 
+      - name: Validate dist package file constraints
+        run: node scripts/ci/check-dist-package-files.mjs
+
+      - name: Enforce patch coverage gate
+        run: npm run -s coverage:patch
+
       - name: Type checking
         run: npm run type-check
 

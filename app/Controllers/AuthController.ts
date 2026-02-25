@@ -14,13 +14,17 @@ import type { IResponse } from '@http/Response';
 import { getValidatedBody } from '@http/ValidationHelper';
 import { JwtManager } from '@security/JwtManager';
 
+const noopLoggerMethod = (_message: string, _data?: unknown): void => undefined;
+
 const Logger =
   NamedLogger ??
   DefaultLogger ??
   Object.freeze({
-    info: (_message: string, _data?: unknown) => undefined,
-    warn: (_message: string, _data?: unknown) => undefined,
-    error: (_message: string, _data?: unknown) => undefined,
+    debug: noopLoggerMethod,
+    info: noopLoggerMethod,
+    warn: noopLoggerMethod,
+    error: noopLoggerMethod,
+    fatal: noopLoggerMethod,
   });
 
 const pickPublicUser = (row: UserRow): { id: unknown; name: string; email: string } => {
