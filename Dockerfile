@@ -9,7 +9,7 @@ ENV NPM_CONFIG_CACHE=/root/.npm
 ENV NPM_CONFIG_PREFER_OFFLINE=true
 
 # Install build dependencies for native modules (better-sqlite3, bcrypt)
-RUN apk add --no-cache python3 make g++ git
+RUN apk add --no-cache g++ git make python3
 
 # Patch npm (base image includes npm 10.x with vulnerable bundled deps)
 ARG NPM_VERSION=11.10.0
@@ -38,7 +38,7 @@ COPY . .
 
 # Build TypeScript to JavaScript
 ARG BUILD_VARIANT=full
-RUN --mount=type=cache,target=/root/.npm,id=zintrust-npm-cache,sharing=locked npm run build:dk
+RUN --mount=type=cache,target=/root/.npm,id=zintrust-npm-cache,sharing=locked npm run core:build:dist
 
 # Runtime Stage - Production image
 FROM node:20-alpine AS runtime
@@ -70,7 +70,7 @@ COPY package.json package-lock.json ./
 
 # Install only production dependencies (requires build tools for native modules)
 RUN --mount=type=cache,target=/root/.npm,id=zintrust-npm-cache,sharing=locked \
-  apk add --no-cache --virtual .build-deps python3 make g++ \
+  apk add --no-cache --virtual .build-deps g++ make python3 \
   && npm ci --omit=dev \
   && npm cache clean --force \
   && apk del .build-deps \
