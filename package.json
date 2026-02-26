@@ -52,7 +52,7 @@
     "test:watch": "vitest",
     "pretest:coverage": "npm run -s worker-plugins:ensure && npm run -s ci:coverage-prep",
     "test:coverage": "vitest run --coverage",
-    "coverage:diff": "tsx dev/coverage-diff.ts",
+    "coverage:diff": "tsx scripts/coverage-diff.ts",
     "coverage:patch": "sh scripts/coverage-patch.sh",
     "lint": "node scripts/ci/ensure-eslint-ajv8.mjs && eslint \"src/**/*.ts\" \"app/**/*.ts\" \"routes/**/*.ts\" \"packages/**/*.ts\" \"tests/**/*.ts\" \"bin/**/*.ts\" \"database/**/*.ts\"",
     "format": "prettier --write 'src/**/*.ts'",
