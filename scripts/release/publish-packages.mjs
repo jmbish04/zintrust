@@ -112,10 +112,9 @@ async function assertCoreShimHasRequiredExports() {
   const dts = await fs.readFile(dtsPath, 'utf8');
 
   const requiredTokens = [
-    'export declare const NodeSingletons: any;',
-    'export declare namespace NodeSingletons {',
-    'export const fs: any;',
-    'export namespace fs {',
+    'export declare const NodeSingletons: {',
+    'randomBytes: (size: number) => any;',
+    'createHash: (algorithm: string) => any;',
     'export declare const MultipartParserRegistry: any;',
     'export type UploadedFile = any;',
     'export type MultipartFieldValue = any;',
@@ -383,18 +382,13 @@ export declare const Router: any;
 export declare const Queue: any;
 export declare const Broadcast: any;
 export declare const Notification: any;
-export declare const NodeSingletons: any;
-export declare namespace NodeSingletons {
-  export const fs: any;
-  export namespace fs {
-    export type ReadStream = any;
-    export type WriteStream = any;
-  }
-  export const path: any;
-  export const os: any;
-  export declare function randomBytes(size: number): any;
-  export declare function createHash(algorithm: string): any;
-}
+export declare const NodeSingletons: {
+  fs: any;
+  path: any;
+  os: any;
+  randomBytes: (size: number) => any;
+  createHash: (algorithm: string) => any;
+};
 export declare const RedisKeys: any;
 export declare const MIME_TYPES: any;
 export declare const appConfig: any;
