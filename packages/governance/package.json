@@ -36,7 +36,7 @@
   },
   "overrides": {
     "ajv": "^8.18.0",
-    "minimatch": "^10.2.1"
+    "minimatch": "^10.2.2"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
