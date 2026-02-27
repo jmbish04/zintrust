@@ -72,6 +72,10 @@ const buildCandidatesForSpecifier = (specifier: string, root: string): string[] 
     return [
       path.join(root, 'dist', 'src', 'index.js'),
       path.join(root, 'dist', 'index.js'),
+      path.join(root, 'node_modules', '@zintrust', 'core', 'dist', 'src', 'index.js'),
+      path.join(root, 'node_modules', '@zintrust', 'core', 'dist', 'index.js'),
+      path.join(root, 'node_modules', '@zintrust', 'core', 'src', 'index.js'),
+      path.join(root, 'node_modules', '@zintrust', 'core', 'index.js'),
       path.join(root, 'src', 'index.ts'),
     ];
   }
@@ -79,6 +83,10 @@ const buildCandidatesForSpecifier = (specifier: string, root: string): string[] 
   if (specifier === '@zintrust/workers') {
     return [
       path.join(root, 'dist', 'packages', 'workers', 'src', 'index.js'),
+      path.join(root, 'node_modules', '@zintrust', 'workers', 'dist', 'src', 'index.js'),
+      path.join(root, 'node_modules', '@zintrust', 'workers', 'dist', 'index.js'),
+      path.join(root, 'node_modules', '@zintrust', 'workers', 'src', 'index.js'),
+      path.join(root, 'node_modules', '@zintrust', 'workers', 'index.js'),
       path.join(root, 'packages', 'workers', 'src', 'index.ts'),
     ];
   }
@@ -114,8 +122,12 @@ const resolvePackageSpecifierUrl = (specifier: string): string | null => {
     const require = NodeSingletons.module.createRequire(import.meta.url);
     const resolved = require.resolve(specifier);
     if (
-      specifier === '@zintrust/workers' &&
-      resolved.includes(`${path.sep}node_modules${path.sep}@zintrust${path.sep}workers${path.sep}`)
+      (specifier === '@zintrust/workers' &&
+        resolved.includes(
+          `${path.sep}node_modules${path.sep}@zintrust${path.sep}workers${path.sep}`
+        )) ||
+      (specifier === '@zintrust/core' &&
+        resolved.includes(`${path.sep}node_modules${path.sep}@zintrust${path.sep}core${path.sep}`))
     ) {
       const local = resolveLocalPackageFallback(specifier);
       if (local) return local;
@@ -173,6 +185,18 @@ const shouldFallbackToFileImport = (error: unknown): boolean => {
   );
 };
 
+const isOptionalD1ProxyModuleMissing = (error: unknown): boolean => {
+  const message = error instanceof Error ? error.message : String(error);
+  const code = (error as { code?: string } | undefined)?.code ?? '';
+
+  if (code !== 'ERR_MODULE_NOT_FOUND') return false;
+
+  return (
+    message.includes('cloudflare-d1-proxy') ||
+    message.includes('/packages/cloudflare-d1-proxy/src/index.js')
+  );
+};
+
 const importModuleFromCode = async (params: {
   code: string;
   normalized: string;
@@ -195,6 +219,9 @@ const importModuleFromCode = async (params: {
       const fileUrl = NodeSingletons.url.pathToFileURL(filePath).href;
       return (await import(fileUrl)) as Record<string, unknown>;
     } catch (fileError) {
+      if (isOptionalD1ProxyModuleMissing(fileError)) {
+        throw fileError;
+      }
       Logger.debug(`Processor URL file fallback failed for ${normalized}`, fileError);
       throw error;
     }
@@ -815,6 +842,13 @@ const fetchProcessorAttempt = async (params: {
 
     return await cacheProcessorFromResponse({ response, normalized, config, cacheKey });
   } catch (error) {
+    if (isOptionalD1ProxyModuleMissing(error)) {
+      Logger.warn(
+        'Processor URL skipped: optional cloudflare-d1-proxy module is unavailable in this runtime.'
+      );
+      return undefined;
+    }
+
     if (controller.signal.aborted) {
       Logger.error('Processor URL fetch timeout', error);
     } else {

@@ -136,8 +136,7 @@ const handleFileUpload = (
     encoding,
     size: 0,
     path: tmpPath,
-    stream: () =>
-      NodeSingletons.fs.createReadStream(tmpPath) as unknown as NodeSingletons.fs.ReadStream,
+    stream: () => NodeSingletons.fs.createReadStream(tmpPath) as unknown as NodeJS.ReadableStream,
     cleanup: async () => {
       await safeUnlink(tmpPath);
       ctx.createdPaths.delete(tmpPath);
