@@ -133,7 +133,6 @@ export const PluginAutoImports = Object.freeze({
     const existingCandidates = candidates.filter((candidate) => existsSync(candidate));
 
     if (existingCandidates.length === 0) {
-      Logger.debug('[plugins] No plugin auto-imports file found', { projectRoot, candidates });
       return { ok: false, reason: 'not-found' };
     }
 
