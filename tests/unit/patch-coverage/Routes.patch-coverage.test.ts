@@ -94,7 +94,7 @@ describe('Routes patch coverage', () => {
     expect(res.setHeader).toHaveBeenCalled();
 
     // serveDocumentationFileAsync should return true when file exists
-    const ok = await Doc.serveDocumentationFileAsync('/doc/index.html', res);
+    const ok = await Doc.serveDocumentationFileAsync('/zintrust-doc/index.html', res);
     expect(ok).toBe(true);
     expect(res.setStatus).toHaveBeenCalledWith(200);
   });

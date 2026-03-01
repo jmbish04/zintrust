@@ -146,7 +146,7 @@ export const registerDocRoutes = (router: IRouter): void => {
   // Root docs entrypoints.
   Router.get(router, `/${docPath}`, handleDocRequest);
   Router.get(router, `/${docPath}/`, handleDocRequest);
-  // Greedy path match for nested assets like /doc/assets/app.js
+  // Greedy path match for nested assets like /zintrust-doc/assets/app.js
   Router.get(router, `/${docPath}/:path*`, handleDocRequest);
 };
 
