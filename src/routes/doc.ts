@@ -1,6 +1,6 @@
 /**
  * Documentation Routes
- * Serves static files from /doc/* paths with relaxed CSP headers.
+ * Serves static files from /zintrust-doc/* paths with relaxed CSP headers.
  */
 
 import { HTTP_HEADERS } from '@config/constants';
@@ -30,6 +30,8 @@ export {
   getPublicRootAsync,
 } from '@core-routes/publicRoot';
 
+const docPath = 'zintrust-doc';
+
 const PUBLIC_ROOT_CACHE_TTL_MS = 3000000000; // 50 minutes, can be adjusted as needed
 let cachedPublicRoot: { value: string; expiresAt: number } | null = null;
 
@@ -50,10 +52,9 @@ const getCachedPublicRootAsync = async (): Promise<string> => {
 const mapStaticPathAsync = async (urlPath: string): Promise<string | undefined> => {
   const publicRoot = await getCachedPublicRootAsync();
   const normalize = (p: string): string => (p.startsWith('/') ? p.slice(1) : p);
-
-  if (urlPath === '/doc' || urlPath === '/doc/') return publicRoot;
-  if (urlPath.startsWith('/doc/')) {
-    const rawRelative = urlPath.slice('/doc/'.length);
+  if (urlPath === `/${docPath}` || urlPath === `/${docPath}/`) return publicRoot;
+  if (urlPath.startsWith(`/${docPath}/`)) {
+    const rawRelative = urlPath.slice(`/${docPath}/`.length);
     const normalizedRelative = tryDecodeURIComponent(rawRelative).replaceAll('\\', '/');
     return resolveSafePath(publicRoot, normalize(normalizedRelative));
   }
@@ -143,10 +144,10 @@ const handleDocRequest = async (req: IRequest, res: IResponse): Promise<void> =>
 
 export const registerDocRoutes = (router: IRouter): void => {
   // Root docs entrypoints.
-  Router.get(router, '/doc', handleDocRequest);
-  Router.get(router, '/doc/', handleDocRequest);
+  Router.get(router, `/${docPath}`, handleDocRequest);
+  Router.get(router, `/${docPath}/`, handleDocRequest);
   // Greedy path match for nested assets like /doc/assets/app.js
-  Router.get(router, '/doc/:path*', handleDocRequest);
+  Router.get(router, `/${docPath}/:path*`, handleDocRequest);
 };
 
 export default {
