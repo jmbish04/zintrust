@@ -171,13 +171,18 @@ const resolveWorkersAdapter = (cfg: DatabaseConfig): IDatabaseAdapter | null => 
 const createAdapter = (cfg: DatabaseConfig): IDatabaseAdapter => {
   const explicitProxy = resolveExplicitProxyAdapter(cfg);
   if (explicitProxy) return explicitProxy;
-  const workersAdapter = resolveWorkersAdapter(cfg);
-  if (workersAdapter) return workersAdapter;
+
+  // First: Check the specific configured driver via registry
   const registered = DatabaseAdapterRegistry.get(cfg.driver);
   if (registered !== undefined) {
     return registered(cfg);
   }
 
+  // Second: Try workers adapter resolution (only if registry lookup failed)
+  const workersAdapter = resolveWorkersAdapter(cfg);
+  if (workersAdapter) return workersAdapter;
+
+  // Third: Fallback to direct adapter creation
   switch (cfg.driver) {
     case 'postgresql':
       return PostgreSQLAdapter.create(cfg);
