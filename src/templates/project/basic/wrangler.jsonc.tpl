@@ -6,7 +6,15 @@
   "workers_dev": true,
   "minify": false,
   "alias": {
-    "@routes/api.ts": "./routes/api.ts"
+    "@routes/api.ts": "./routes/api.ts",
+    "@runtime-config/broadcast.ts": "./config/broadcast.ts",
+    "@runtime-config/cache.ts": "./config/cache.ts",
+    "@runtime-config/database.ts": "./config/database.ts",
+    "@runtime-config/mail.ts": "./config/mail.ts",
+    "@runtime-config/storage.ts": "./config/storage.ts",
+    "@runtime-config/queue.ts": "./config/queue.ts",
+    "@runtime-config/notification.ts": "./config/notification.ts",
+    "@runtime-config/middleware.ts": "./config/middleware.ts"
   },
 
   "vars": {

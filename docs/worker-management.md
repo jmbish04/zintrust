@@ -38,7 +38,7 @@ The Worker Management System provides enterprise-level features for managing bac
 ### 0. Install the workers package
 
 ```bash
-npm install @zintrust/workers
+zin add  @zintrust/workers
 ```
 
 Use the workers package directly:

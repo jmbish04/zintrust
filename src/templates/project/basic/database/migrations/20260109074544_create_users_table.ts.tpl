@@ -1,5 +1,9 @@
-import { MigrationSchema, type Blueprint } from '@zintrust/core';
-import type { IDatabase } from '@zintrust/core';
+/**
+ * Migration: CreateUsersTable
+ * Creates users table
+ */
+import type { Blueprint, IDatabase } from '@zintrust/core';
+import { MigrationSchema } from '@zintrust/core';
 
 export interface Migration {
   up(db: IDatabase): Promise<void>;
@@ -15,10 +19,7 @@ export const migration: Migration = {
       table.string('name');
       table.string('email').unique();
       table.string('password');
-      table.timestamp('email_verified_at').nullable();
-      table.boolean('active').default(true);
       table.timestamps();
-      table.timestamp('deleted_at').nullable();
     });
   },
 
