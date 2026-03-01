@@ -210,6 +210,16 @@ const appConfigObj = {
   dockerWorker: readEnvBool('DOCKER_WORKER', Env.DOCKER_WORKER),
 
   /**
+   * Indicates if the application is running as a Cloudflare Worker
+   */
+  cloudflareWorker: readEnvBool('CLOUDFLARE_WORKER', Env.CLOUDFLARE_WORKER),
+
+  /**
+   * Indicates if the application is running as a generic Worker (e.g. Cloudflare, AWS Lambda)
+   */
+  worker: readEnvBool('WORKER_ENABLED', Env.WORKER_ENABLED),
+
+  /**
    * Application timezone
    */
   timezone: readEnvString('APP_TIMEZONE', Env.APP_TIMEZONE),

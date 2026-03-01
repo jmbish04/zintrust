@@ -4,7 +4,6 @@ import { loadQueueMonitorModule, loadWorkersModule } from '@/runtime/WorkersModu
 import { registerCachesFromRuntimeConfig } from '@cache/CacheRuntimeRegistration';
 import broadcastConfig from '@config/broadcast';
 import { Cloudflare } from '@config/cloudflare';
-import { Env } from '@config/env';
 import { FeatureFlags } from '@config/features';
 import { Logger } from '@config/logger';
 import notificationConfig from '@config/notification';
@@ -62,7 +61,12 @@ const readRuntimeConfig = <T>(key: string, fallback: T): T => {
   }
 };
 
-const appConfig = readRuntimeConfig('appConfig', { port: 7777, dockerWorker: false });
+const appConfig = readRuntimeConfig('appConfig', {
+  port: 7777,
+  dockerWorker: false,
+  worker: false,
+  detectRuntime: () => 'nodejs',
+});
 const cacheConfig = readRuntimeConfig('cacheConfig', RuntimeConfig.cacheConfig);
 const databaseConfig = readRuntimeConfig('databaseConfig', {
   default: 'sqlite',
@@ -418,14 +422,16 @@ export const createLifecycle = (params: {
     await initializeArtifactDirectories(params.resolvedBasePath);
     await registerMasterRoutes(params.resolvedBasePath, params.router);
 
-    const workerEnabled = Env.getBool('WORKER_ENABLED', false);
-
-    if (Cloudflare.getWorkersEnv() === null && appConfig.dockerWorker === false && workerEnabled) {
+    if (
+      Cloudflare.getWorkersEnv() === null &&
+      appConfig.dockerWorker === false &&
+      appConfig.worker === true
+    ) {
       await initializeWorkers(params.router);
       await initializeQueueMonitor(params.router);
       await initializeQueueHttpGateway(params.router);
       await initializeScheduleHttpGateway(params.router);
-    } else if (!workerEnabled) {
+    } else if (!appConfig.dockerWorker) {
       Logger.info('Skipping worker module initialization (WORKER_ENABLED=false).');
     }
     // Register service providers

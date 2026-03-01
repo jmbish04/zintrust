@@ -339,12 +339,16 @@ export const Env = Object.freeze({
   LOG_LEVEL: get('LOG_LEVEL', getDefaultLogLevel()) as 'debug' | 'info' | 'warn' | 'error',
   LOG_FORMAT: get('LOG_FORMAT', 'text'),
   LOG_CHANNEL: get('LOG_CHANNEL', ''),
-  DOCKER_WORKER: getBool('DOCKER_WORKER', false),
   DISABLE_LOGGING: getBool('DISABLE_LOGGING', false),
   LOG_HTTP_REQUEST: getBool('LOG_HTTP_REQUEST', false),
   LOG_TO_FILE: getBool('LOG_TO_FILE', false),
   LOG_ROTATION_SIZE: getInt('LOG_ROTATION_SIZE', 10485760),
   LOG_ROTATION_DAYS: getInt('LOG_ROTATION_DAYS', 7),
+
+  // Worker-specific
+  CLOUDFLARE_WORKER: getBool('CLOUDFLARE_WORKER', false),
+  WORKER_ENABLED: getBool('WORKER_ENABLED', false),
+  DOCKER_WORKER: getBool('DOCKER_WORKER', false),
 
   // zintrust-specific
   ZINTRUST_PROJECT_ROOT: get('ZINTRUST_PROJECT_ROOT', ''),

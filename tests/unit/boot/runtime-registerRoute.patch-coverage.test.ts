@@ -112,7 +112,7 @@ describe('runtime/registerRoute patch coverage', () => {
     }));
 
     vi.doMock('@/config', () => ({
-      appConfig: { port: 7777, dockerWorker: false },
+      appConfig: { port: 7777, dockerWorker: false, worker: true },
       cacheConfig: {},
       databaseConfig: { default: 'sqlite', connections: {} },
       queueConfig: { drivers: { redis: { host: '127.0.0.1', port: 6379, database: 0 } } },
@@ -216,7 +216,7 @@ describe('runtime/registerRoute patch coverage', () => {
     }));
 
     vi.doMock('@/config', () => ({
-      appConfig: { port: 7777, dockerWorker: false },
+      appConfig: { port: 7777, dockerWorker: false, worker: true },
       cacheConfig: {},
       databaseConfig: { default: 'sqlite', connections: {} },
       queueConfig: { drivers: { redis: {} } },
@@ -315,7 +315,7 @@ describe('runtime/registerRoute patch coverage', () => {
     });
 
     vi.doMock('@/config', () => ({
-      appConfig: { port: 7777, dockerWorker: false },
+      appConfig: { port: 7777, dockerWorker: false, worker: true },
       cacheConfig: {},
       databaseConfig: { default: 'sqlite', connections: {} },
       queueConfig: { drivers: { redis: {} } },
