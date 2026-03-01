@@ -5,6 +5,9 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "minify": false,
+  "alias": {
+    "@routes/api.ts": "./routes/api.ts"
+  },
 
   "vars": {
     "ENVIRONMENT": "development"

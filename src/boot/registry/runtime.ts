@@ -65,8 +65,10 @@ const appConfig = readRuntimeConfig('appConfig', {
   port: 7777,
   dockerWorker: false,
   worker: false,
-  detectRuntime: () => 'nodejs',
 });
+
+// exported solely for tests to exercise the default detectRuntime handler
+
 const cacheConfig = readRuntimeConfig('cacheConfig', RuntimeConfig.cacheConfig);
 const databaseConfig = readRuntimeConfig('databaseConfig', {
   default: 'sqlite',

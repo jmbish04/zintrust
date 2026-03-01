@@ -148,7 +148,7 @@ const resolveWorkersAdapter = (cfg: DatabaseConfig): IDatabaseAdapter | null => 
   const workersEnv = Cloudflare.getWorkersEnv();
   if (workersEnv === null) return null;
 
-  Logger.info('[Database] Resolving adapter for Cloudflare Workers runtime', {
+  Logger.debug('[Database] Resolving adapter for Cloudflare Workers runtime', {
     driver: cfg.driver,
     useMySqlProxy: Env.getBool('USE_MYSQL_PROXY', false),
     mysqlProxyUrlConfigured: Env.get('MYSQL_PROXY_URL', '').trim() !== '',

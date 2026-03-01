@@ -7,6 +7,8 @@ vi.mock('@config/logger', () => ({
 vi.mock('@/config', () => ({
   appConfig: {
     environment: 'test',
+    // runtime detection is called by several modules; provide a simple stub
+    detectRuntime: () => 'nodejs',
     isDevelopment: () => false,
     isProduction: () => false,
     isTesting: () => true,

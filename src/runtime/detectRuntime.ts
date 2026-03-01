@@ -1,3 +1,4 @@
+import { appConfig } from '@/config';
 import { ZintrustLang } from '@lang/lang';
 
 export type RuntimeMode = 'cloudflare-workers' | 'containers' | 'node-server';
@@ -5,8 +6,9 @@ export type RuntimeMode = 'cloudflare-workers' | 'containers' | 'node-server';
 export const isNodeRuntime = (): boolean => {
   // Avoid importing any `node:*` modules so this file remains Worker-safe.
   // In Workers/Deno, `process` is typically undefined.
-
+  const detectRuntime = appConfig.detectRuntime() !== 'cloudflare';
   return (
+    detectRuntime &&
     typeof process !== ZintrustLang.UNDEFINED &&
     typeof process === ZintrustLang.OBJECT &&
     process !== null &&
