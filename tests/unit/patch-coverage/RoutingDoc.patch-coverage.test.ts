@@ -62,37 +62,39 @@ describe('patch coverage: routing/doc', () => {
     nodeFs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('serves /doc directory index.html', async () => {
+  it('serves /zintrust-doc directory index.html', async () => {
     const res = createRes();
 
-    const served = await serveDocumentationFileAsync('/doc', res as any);
+    const served = await serveDocumentationFileAsync('/zintrust-doc', res as any);
     expect(served).toBe(true);
     expect(res.setStatus).toHaveBeenCalledWith(200);
     expect(res.setHeader).toHaveBeenCalledWith('Content-Type', expect.any(String));
     expect(res.send).toHaveBeenCalledWith(expect.any(Buffer));
   });
 
-  it('serves extensionless /doc/foo via .html fallback', async () => {
+  it('serves extensionless /zintrust-doc/foo via .html fallback', async () => {
     const res = createRes();
 
-    const served = await serveDocumentationFileAsync('/doc/foo', res as any);
+    const served = await serveDocumentationFileAsync('/zintrust-doc/foo', res as any);
     expect(served).toBe(true);
     expect(res.setStatus).toHaveBeenCalledWith(200);
   });
 
-  it('normalizes encoded and backslash paths under /doc', async () => {
+  it('normalizes encoded and backslash paths under /zintrust-doc', async () => {
     const res1 = createRes();
-    expect(await serveDocumentationFileAsync('/doc/assets%2Fapp.js', res1 as any)).toBe(true);
-
-    const res2 = createRes();
-    expect(await serveDocumentationFileAsync(String.raw`/doc/assets\app.js`, res2 as any)).toBe(
+    expect(await serveDocumentationFileAsync('/zintrust-doc/assets%2Fapp.js', res1 as any)).toBe(
       true
     );
+
+    const res2 = createRes();
+    expect(
+      await serveDocumentationFileAsync(String.raw`/zintrust-doc/assets\app.js`, res2 as any)
+    ).toBe(true);
   });
 
   it('returns false when path traversal escapes public root', async () => {
     const res = createRes();
-    expect(await serveDocumentationFileAsync('/doc/../secret', res as any)).toBe(false);
+    expect(await serveDocumentationFileAsync('/zintrust-doc/../secret', res as any)).toBe(false);
   });
 
   it('sets relaxed CSP header', () => {
@@ -104,14 +106,14 @@ describe('patch coverage: routing/doc', () => {
     );
   });
 
-  it('registers /doc routes and calls notFound when missing', async () => {
+  it('registers /zintrust-doc routes and calls notFound when missing', async () => {
     const router = Router.createRouter();
     registerDocRoutes(router);
 
-    const match = Router.match(router, 'GET', '/doc/missing-file');
-    if (match === null) throw new Error('Expected /doc/:path* route');
+    const match = Router.match(router, 'GET', '/zintrust-doc/missing-file');
+    if (match === null) throw new Error('Expected /zintrust-doc/:path* route');
 
-    const req = { getPath: vi.fn(() => '/doc/missing-file') } as any;
+    const req = { getPath: vi.fn(() => '/zintrust-doc/missing-file') } as any;
     const res = createRes();
 
     await match.handler(req, res as any);

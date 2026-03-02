@@ -1,7 +1,7 @@
 import { CLI } from '@/cli/CLI';
 import { ErrorHandler } from '@/cli/ErrorHandler';
-import type { IApplication } from '@boot/Application';
 import { Application } from '@boot/Application';
+import type { IApplication } from '@boot/registry/type';
 import { Server } from '@boot/Server';
 import { Env } from '@config/env';
 import { Logger } from '@config/logger';
@@ -126,7 +126,7 @@ describe('Application & Server', () => {
     expect(httpRequestHandler).toBeDefined();
 
     const mockReq = {
-      url: '/doc/test.html',
+      url: '/zintrust-doc/test.html',
       method: 'GET',
       headers: {},
       on: vi.fn(),
@@ -237,7 +237,12 @@ describe('Application & Server', () => {
       vi.spyOn(fs.fsPromises, 'access').mockResolvedValue(undefined);
     }
 
-    const mockReq = { url: '/doc/test.unknown', method: 'GET', headers: {}, on: vi.fn() } as any;
+    const mockReq = {
+      url: '/zintrust-doc/test.unknown',
+      method: 'GET',
+      headers: {},
+      on: vi.fn(),
+    } as any;
     const mockRes = {
       setHeader: vi.fn(),
       writeHead: vi.fn(),
@@ -256,7 +261,12 @@ describe('Application & Server', () => {
       vi.spyOn(fs.fsPromises, 'stat').mockRejectedValue(new Error('stat error'));
     }
 
-    const errReq = { url: '/doc/test.html', method: 'GET', headers: {}, on: vi.fn() } as any;
+    const errReq = {
+      url: '/zintrust-doc/test.html',
+      method: 'GET',
+      headers: {},
+      on: vi.fn(),
+    } as any;
     const errRes = {
       setHeader: vi.fn(),
       writeHead: vi.fn(),
@@ -307,8 +317,13 @@ describe('Application & Server', () => {
       vi.spyOn(fs.fsPromises, 'readFile').mockResolvedValue(Buffer.from('ok'));
     }
 
-    // /doc/clean-url handled in Server.ts handleNotFound via doc.ts utilities
-    const mockReq = { url: '/doc/clean-url', method: 'GET', headers: {}, on: vi.fn() } as any;
+    // /zintrust-doc/clean-url handled in Server.ts handleNotFound via doc.ts utilities
+    const mockReq = {
+      url: '/zintrust-doc/clean-url',
+      method: 'GET',
+      headers: {},
+      on: vi.fn(),
+    } as any;
     const mockRes = {
       setHeader: vi.fn(),
       writeHead: vi.fn(),
@@ -335,7 +350,12 @@ describe('Application & Server', () => {
       vi.spyOn(fs.fsPromises, 'access').mockRejectedValue(new Error('ENOENT'));
       vi.spyOn(fs.fsPromises, 'stat').mockRejectedValue(new Error('ENOENT'));
     }
-    const mockReq = { url: '/doc/missing', method: 'GET', headers: {}, on: vi.fn() } as any;
+    const mockReq = {
+      url: '/zintrust-doc/missing',
+      method: 'GET',
+      headers: {},
+      on: vi.fn(),
+    } as any;
     const mockRes = {
       setHeader: vi.fn(),
       writeHead: vi.fn(),
@@ -384,7 +404,7 @@ describe('Application & Server', () => {
 
     // Server.ts logic uses serveDocumentationFileAsync
     // which maps /doc -> public/index.html (via @routing/doc).
-    const mockReq = { url: '/doc', method: 'GET', headers: {}, on: vi.fn() } as any;
+    const mockReq = { url: '/zintrust-doc', method: 'GET', headers: {}, on: vi.fn() } as any;
     const mockRes = {
       setHeader: vi.fn(),
       writeHead: vi.fn(),

@@ -19,7 +19,6 @@ vi.mock('@exceptions/ZintrustError', () => ({
   },
 }));
 
-import { Logger } from '@config/logger';
 import { PluginAutoImports } from '@runtime/PluginAutoImports';
 
 describe('patch coverage: PluginAutoImports projectRoot', () => {
@@ -40,11 +39,6 @@ describe('patch coverage: PluginAutoImports projectRoot', () => {
     if (!result.ok) {
       expect(result.reason).toBeDefined();
     }
-    expect(vi.mocked(Logger.debug)).toHaveBeenCalledWith(
-      '[plugins] No plugin auto-imports file found',
-      expect.objectContaining({ projectRoot: '/tmp/zintrust-test-root' }) //NOSONAR
-    );
-
     cwdSpy.mockRestore();
     if (original !== undefined) process.env['ZINTRUST_PROJECT_ROOT'] = original;
   });

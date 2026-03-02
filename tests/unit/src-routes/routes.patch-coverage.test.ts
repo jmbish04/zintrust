@@ -21,6 +21,8 @@ vi.mock('@config/env', () => ({
 vi.mock('@/config', () => ({
   appConfig: {
     environment: 'test',
+    // routes and runtime helpers rely on this method; tests only need a simple value
+    detectRuntime: () => 'nodejs',
   },
   cacheConfig: {
     default: 'memory',

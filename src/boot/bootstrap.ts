@@ -147,6 +147,7 @@ const gracefulShutdown = async (signal: string): Promise<void> => {
       (async () => {
         // Shutdown worker management system FIRST (before database closes)
         if (
+          appConfig.worker === true &&
           (appConfig.detectRuntime() === 'nodejs' || appConfig.detectRuntime() === 'lambda') &&
           appConfig.dockerWorker === false
         ) {
@@ -195,8 +196,7 @@ const gracefulShutdown = async (signal: string): Promise<void> => {
 
 async function useWorkerStarter(): Promise<void> {
   // Check if workers are enabled in this environment
-  const workerEnabled = Env.getBool('WORKER_ENABLED', false);
-  if (!workerEnabled || appConfig.dockerWorker === true) {
+  if (!appConfig.worker || appConfig.dockerWorker === true) {
     Logger.info(
       'Workers disabled in this runtime (WORKER_ENABLED=false && DOCKER_WORKER=true), skipping worker management initialization'
     );
@@ -266,12 +266,13 @@ const BootstrapFunctions = Object.freeze({
       await server.listen();
 
       Logger.info(`Server running at http://${host}:${port}`);
-      Logger.info(`ZinTrust documentation at http://${host}:${port}/doc`);
+      Logger.info(`ZinTrust documentation at http://${host}:${port}/zintrust-doc`);
 
       // Start schedules for long-running runtimes (Node.js / Fargate)
       await startSchedulesIfNeeded(app);
 
       if (
+        appConfig.worker === true &&
         appConfig.dockerWorker === false &&
         (appConfig.detectRuntime() === 'nodejs' || appConfig.detectRuntime() === 'lambda')
       ) {

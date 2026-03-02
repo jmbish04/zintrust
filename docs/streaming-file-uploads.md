@@ -111,7 +111,7 @@ Router.post(router, '/contact', async (req, res) => {
 ### Installation
 
 ```bash
-npm install @zintrust/storage
+zin add  @zintrust/storage
 ```
 
 The `@zintrust/storage` package provides:
@@ -735,7 +735,7 @@ await server.listen();
 **Solution**: Ensure `@zintrust/storage` is installed and registered:
 
 ```bash
-npm install @zintrust/storage
+zin add  @zintrust/storage
 ```
 
 ```ts

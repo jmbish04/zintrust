@@ -37,7 +37,7 @@ export const start = async (): Promise<void> => {
   // Compiled output places bootstrap at `dist/src/boot/bootstrap.js`.
   // This file compiles to `dist/src/start.js`, so relative import is stable.
   // In unit tests, importing bootstrap has heavy side effects (starts server + exits).
-  await import('./boot/' + ZintrustLang.BOOTSTRAPJS);
+  await import('@boot/bootstrap');
 };
 
 /**

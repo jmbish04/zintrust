@@ -73,6 +73,7 @@ describe('detectRuntime extra branches', () => {
     expect(result.isCloudflare).toBe(true);
     expect(result.isDeno).toBe(true);
     expect(result.isBun).toBe(true);
-    expect(result.isNode).toBe(true);
+    // cloudflare override should prevent node runtime detection now
+    expect(result.isNode).toBe(false);
   });
 });

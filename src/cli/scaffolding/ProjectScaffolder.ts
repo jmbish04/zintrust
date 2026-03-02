@@ -649,7 +649,7 @@ zin s
 
 - Health: http://localhost:{{port}}/health
 - Tasks:  http://localhost:{{port}}/api/tasks
-- Doc:  http://localhost:{{port}}/doc
+- Doc:  http://localhost:{{port}}/zintrust-doc
 `;
   }
 

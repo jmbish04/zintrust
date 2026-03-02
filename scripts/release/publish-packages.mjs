@@ -82,6 +82,15 @@ function flattenForTableCell(value) {
 }
 
 function installCoreShimIntoPackage(pkgDir) {
+  // The workers package has a tight peer-dependency on @zintrust/core that
+  // conflicts with the temporary shim version. We build workers with the real
+  // core in CI instead, so skip the shim there. All other packages still need
+  // the shim to compile before core is published.
+  if (pkgDir.endsWith(path.join('packages', 'workers'))) {
+    process.stdout.write('skipping core shim for workers package\n');
+    return;
+  }
+
   run(
     'npm',
     ['install', '--no-save', '--no-package-lock', '--ignore-scripts', '--silent', shimDir],

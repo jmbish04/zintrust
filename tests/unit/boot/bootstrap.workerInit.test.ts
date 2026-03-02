@@ -55,9 +55,15 @@ describe('bootstrap useWorkerStarter path', () => {
     }));
     vi.doMock('@/schedules', () => ({}));
 
-    // Mock appConfig.detectRuntime to 'nodejs'
+    // Mock appConfig.detectRuntime to 'nodejs' and enable workers
     vi.doMock('@config/app', () => ({
-      appConfig: { detectRuntime: () => 'nodejs', dockerWorker: false, port: 0, host: '127.0.0.1' },
+      appConfig: {
+        detectRuntime: () => 'nodejs',
+        dockerWorker: false,
+        port: 0,
+        host: '127.0.0.1',
+        worker: true,
+      },
     }));
 
     const fakeWorkers = {

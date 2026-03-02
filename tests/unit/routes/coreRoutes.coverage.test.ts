@@ -158,7 +158,7 @@ describe('Core routes coverage helpers', () => {
     vi.mocked(fs.fsPromises.readFile).mockResolvedValue(Buffer.from('ok') as any);
     // path.join is already mocked above
 
-    const served = await doc.serveDocumentationFileAsync('/doc', res);
+    const served = await doc.serveDocumentationFileAsync('/zintrust-doc', res);
     expect(served).toBe(true);
     expect(res.status === 200 || res.status === 0).toBe(true);
   });
