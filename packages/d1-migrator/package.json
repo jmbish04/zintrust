@@ -1,0 +1,37 @@
+{
+  "name": "@zintrust/d1-migrator",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "peerDependencies": {
+    "@zintrust/core": "file:../../dist"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@zintrust/db-mysql": "file:../../packages/db-mysql",
+    "@zintrust/db-postgres": "file:../../packages/db-postgres", 
+    "@zintrust/db-sqlite": "file:../../packages/db-sqlite",
+    "@zintrust/db-sqlserver": "file:../../packages/db-sqlserver",
+    "@zintrust/db-d1": "file:../../packages/db-d1"
+  }
+}

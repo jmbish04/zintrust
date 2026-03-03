@@ -1,0 +1,17 @@
+{
+  "name": "ZinTrust Development Sandbox",
+  "image": "docker.io/zintrust/zintrust:latest",
+  "forwardPorts": [7777],
+  "portsAttributes": {
+    "7777": {
+      "label": "ZinTrust API",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-azuretools.vscode-docker", "ms-vscode-remote.remote-containers"]
+    }
+  },
+  "postStartCommand": "node --experimental-specifier-resolution=node dist/src/boot/bootstrap.js"
+}
