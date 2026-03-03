@@ -3,7 +3,7 @@
   "image": "docker.io/zintrust/zintrust:latest",
   "forwardPorts": [7772],
   "portsAttributes": {
-    "7777": {
+    "7772": {
       "label": "ZinTrust API",
       "onAutoForward": "openBrowser"
     }
