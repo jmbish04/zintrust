@@ -1,0 +1,21 @@
+{
+  "name": "ZinTrust Development Sandbox",
+  "image": "docker.io/zintrust/zintrust:latest",
+  "forwardPorts": [7772],
+  "portsAttributes": {
+    "7772": {
+      "label": "ZinTrust API",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-azuretools.vscode-docker", "ms-vscode-remote.remote-containers"]
+    }
+  },
+  "containerEnv": {
+    "APP_KEY": "base64:ZrG+WwzeYIqZ/n3RPYEbJjQLFOmmAuhndRya69OFwzE=",
+    "ENCRYPTION_CIPHER": "aes-256-gcm"
+  },
+  "postStartCommand": "cd /app && node --experimental-specifier-resolution=node dist/src/boot/bootstrap.js"
+}
