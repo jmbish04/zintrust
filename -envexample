@@ -171,6 +171,7 @@ DB_DATABASE=
 DB_USERNAME=postgres
 DB_PASSWORD=
 DB_READ_HOSTS=
+DB_HOSTS=
 
 # PostgreSQL
 DB_PORT_POSTGRESQL=5432
@@ -226,6 +227,48 @@ KV_REMOTE_NAMESPACE=
 CLOUDFLARE_ACCOUNT_ID=
 CLOUDFLARE_API_TOKEN=
 CLOUDFLARE_KV_NAMESPACE_ID=
+
+
+# ============================================================================
+# D1 MIGRATOR CLI (zin migrate-to-d1)
+# ============================================================================
+
+# Run without flags after setting values:
+#   zin migrate-to-d1
+#
+# Resolution order:
+# 1) CLI options
+# 2) MIGRATE_TO_D1_* (or D1_MIGRATOR_*)
+# 3) DB_* and D1_* fallbacks
+
+# Target fallback used by migrate-to-d1 when --target-database is omitted.
+D1_TARGET_DB=d1
+# Optional fallback for --to (d1 | d1-remote)
+D1_TARGET_TYPE=d1
+
+# Optional explicit migrator settings
+MIGRATE_TO_D1_FROM=
+MIGRATE_TO_D1_SOURCE_CONNECTION=
+MIGRATE_TO_D1_SOURCE_DRIVER=
+MIGRATE_TO_D1_TO=
+MIGRATE_TO_D1_TARGET_DATABASE=
+MIGRATE_TO_D1_BATCH_SIZE=1000
+MIGRATE_TO_D1_CHECKPOINT_INTERVAL=10000
+MIGRATE_TO_D1_DRY_RUN=false
+MIGRATE_TO_D1_SCHEMA_ONLY=false
+MIGRATE_TO_D1_INTERACTIVE=false
+MIGRATE_TO_D1_RESUME=false
+MIGRATE_TO_D1_MIGRATION_ID=
+
+# Quick MySQL -> local D1 test (uncomment and adjust):
+# DB_CONNECTION=mysql
+# DB_READ_HOSTS=127.0.0.1
+# DB_HOSTS=127.0.0.1
+# DB_PORT=3306
+# DB_DATABASE=zintrust
+# DB_USERNAME=root
+# DB_PASSWORD=
+# D1_TARGET_DB=zintrust-live-test
 
 
 # ============================================================================

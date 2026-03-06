@@ -28,13 +28,15 @@ export const SchemaBuilder = Object.freeze({
   buildD1Table(sourceTable: TableSchema, sourceDriver: string): TableSchema {
     const sanitizedTableName = DataValidator.sanitizeTableName(sourceTable.name);
 
-    const d1Table: TableSchema = {
+    const d1Table: TableSchema = <TableSchema>{
       name: sanitizedTableName,
       columns: sourceTable.columns.map((column) =>
         SchemaBuilder.buildD1Column(column, sourceDriver)
       ),
       primaryKey: sourceTable.primaryKeys?.[0] || '',
       indexes: sourceTable.indexes || [],
+      primaryKeys: sourceTable.primaryKeys || [],
+      foreignKeys: sourceTable.foreignKeys || [],
     };
 
     Logger.info(`Converted table: ${sourceTable.name} -> ${sanitizedTableName}`);

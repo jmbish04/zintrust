@@ -71,6 +71,7 @@ import { Logger } from '@config/logger';
 import { ErrorFactory } from '@exceptions/ZintrustError';
 import { readFileSync } from '@node-singletons/fs';
 import { join } from '@node-singletons/path';
+import { D1Migrator } from '@zintrust/d1-migrator';
 import { Command } from 'commander';
 
 const __dirname = esmDirname(import.meta.url);
@@ -124,6 +125,7 @@ const buildCommandRegistry = (): Array<Command | CommandProvider> => {
     DbSeedCommand.create(),
     D1LearnCommand.create(),
     D1MigrateCommand.create(),
+    D1Migrator.MigrateToD1Command,
     DebugCommand.create(),
     SecretsCommand.create(),
     ConfigCommand.create(),
