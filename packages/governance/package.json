@@ -31,8 +31,8 @@
   },
   "dependencies": {
     "@eslint/js": "^10.0.1",
-    "globals": "^17.3.0",
-    "typescript-eslint": "^8.56.0"
+    "globals": "^17.4.0",
+    "typescript-eslint": "^8.56.1"
   },
   "overrides": {
     "ajv": "^8.18.0",
