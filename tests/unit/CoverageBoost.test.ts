@@ -23,30 +23,38 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 let httpRequestHandler: ((req: unknown, res: unknown) => void | Promise<void>) | undefined;
 
 // Mock node:fs for Application/Server/Logger
-vi.mock('@node-singletons/fs', () => ({
-  readFileSync: vi.fn().mockReturnValue('{}'),
-  existsSync: vi.fn().mockReturnValue(true),
-  mkdirSync: vi.fn(),
-  writeFileSync: vi.fn(),
-  readdirSync: vi.fn().mockReturnValue([]),
-  appendFileSync: vi.fn(),
-  statSync: vi.fn().mockReturnValue({
-    size: 0,
-    mtime: new Date(),
-    isDirectory: vi.fn().mockReturnValue(false),
-  }),
-  unlinkSync: vi.fn(),
-  promises: {
+vi.mock('@node-singletons/fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@node-singletons/fs')>();
+
+  const promises = {
     stat: vi.fn(),
     readFile: vi.fn(),
     access: vi.fn(),
-  },
-  fsPromises: {
-    stat: vi.fn(),
+    readdir: vi.fn().mockResolvedValue([]),
+  };
+
+  return {
+    ...actual,
+    readFileSync: vi.fn().mockReturnValue('{}'),
+    existsSync: vi.fn().mockReturnValue(true),
+    mkdirSync: vi.fn(),
+    writeFileSync: vi.fn(),
+    readdirSync: vi.fn().mockReturnValue([]),
+    appendFileSync: vi.fn(),
+    statSync: vi.fn().mockReturnValue({
+      size: 0,
+      mtime: new Date(),
+      isDirectory: vi.fn().mockReturnValue(false),
+    }),
+    unlinkSync: vi.fn(),
+    mkdir: vi.fn(),
     readFile: vi.fn(),
-    access: vi.fn(),
-  },
-}));
+    rm: vi.fn(),
+    writeFile: vi.fn(),
+    promises,
+    fsPromises: promises,
+  };
+});
 
 // Mock node:http
 vi.mock('@node-singletons/http', () => ({
