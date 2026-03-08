@@ -6,9 +6,14 @@ import * as fs from '@node-singletons/fs';
 import type { Command } from 'commander';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@node-singletons/fs', () => ({
-  readFileSync: vi.fn(),
-}));
+vi.mock('@node-singletons/fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@node-singletons/fs')>();
+
+  return {
+    ...actual,
+    readFileSync: vi.fn(),
+  };
+});
 
 vi.mock('@cli/ErrorHandler', () => ({
   ErrorHandler: {

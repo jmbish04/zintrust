@@ -19,7 +19,7 @@ import type {
 } from '../types';
 
 // Type definitions for adapters
-interface IDatabaseAdapter {
+export interface IDatabaseAdapter {
   connect(): Promise<void>;
   disconnect(): Promise<void>;
   query(
@@ -143,16 +143,18 @@ export const SchemaAnalyzer = Object.freeze({
   ): Promise<TableRelationship[]> {
     Logger.info('Extracting table relationships...');
 
-    // Mock implementation - analyze foreign key relationships
-    const relationships: TableRelationship[] = [
-      {
-        sourceTable: 'posts',
-        sourceColumn: 'user_id',
-        targetTable: 'users',
-        targetColumn: 'id',
-        type: 'one-to-many', // User has many posts
-      },
-    ];
+    const relationships: TableRelationship[] = [];
+    for (const table of _tables) {
+      for (const foreignKey of table.foreignKeys ?? []) {
+        relationships.push({
+          sourceTable: table.name,
+          sourceColumn: foreignKey.column,
+          targetTable: foreignKey.referencedTable,
+          targetColumn: foreignKey.referencedColumn,
+          type: 'one-to-many',
+        });
+      }
+    }
 
     Logger.info(`Extracted ${relationships.length} relationships`);
     return relationships;
@@ -167,33 +169,38 @@ export const SchemaAnalyzer = Object.freeze({
   ): Promise<TableConstraint[]> {
     Logger.info('Extracting table constraints...');
 
-    // Mock implementation - analyze unique constraints, check constraints, etc.
-    const constraints: TableConstraint[] = [
-      {
-        table: 'users',
-        type: 'unique',
-        columns: ['email'],
-        definition: 'UNIQUE (email)',
-      },
-      {
-        table: 'users',
-        type: 'primary_key',
-        columns: ['id'],
-        definition: 'PRIMARY KEY (id)',
-      },
-      {
-        table: 'posts',
-        type: 'primary_key',
-        columns: ['id'],
-        definition: 'PRIMARY KEY (id)',
-      },
-      {
-        table: 'posts',
-        type: 'foreign_key',
-        columns: ['user_id'],
-        definition: 'FOREIGN KEY (user_id) REFERENCES users(id)',
-      },
-    ];
+    const constraints: TableConstraint[] = [];
+
+    for (const table of _tables) {
+      if (table.primaryKeys.length > 0) {
+        constraints.push({
+          table: table.name,
+          type: 'primary_key',
+          columns: [...table.primaryKeys],
+          definition: `PRIMARY KEY (${table.primaryKeys.join(', ')})`,
+        });
+      }
+
+      for (const index of table.indexes ?? []) {
+        if (index.unique) {
+          constraints.push({
+            table: table.name,
+            type: 'unique',
+            columns: [...index.columns],
+            definition: `UNIQUE (${index.columns.join(', ')})`,
+          });
+        }
+      }
+
+      for (const foreignKey of table.foreignKeys ?? []) {
+        constraints.push({
+          table: table.name,
+          type: 'foreign_key',
+          columns: [foreignKey.column],
+          definition: `FOREIGN KEY (${foreignKey.column}) REFERENCES ${foreignKey.referencedTable}(${foreignKey.referencedColumn})`,
+        });
+      }
+    }
 
     Logger.info(`Extracted ${constraints.length} constraints`);
     return constraints;
@@ -723,15 +730,16 @@ export const SchemaAnalyzer = Object.freeze({
       case 'mysql':
         return `
           SELECT
-            CONSTRAINT_NAME,
-            COLUMN_NAME,
-            REFERENCED_TABLE_NAME,
-            REFERENCED_COLUMN_NAME,
-            DELETE_RULE,
-            UPDATE_RULE
+            kcu.CONSTRAINT_NAME AS CONSTRAINT_NAME,
+            kcu.COLUMN_NAME AS COLUMN_NAME,
+            kcu.REFERENCED_TABLE_NAME AS REFERENCED_TABLE_NAME,
+            kcu.REFERENCED_COLUMN_NAME AS REFERENCED_COLUMN_NAME,
+            rc.DELETE_RULE AS DELETE_RULE,
+            rc.UPDATE_RULE AS UPDATE_RULE
           FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
           JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS rc
             ON kcu.CONSTRAINT_NAME = rc.CONSTRAINT_NAME
+            AND kcu.CONSTRAINT_SCHEMA = rc.CONSTRAINT_SCHEMA
           WHERE kcu.TABLE_SCHEMA = DATABASE()
             AND kcu.TABLE_NAME = '${tableName}'
             AND kcu.REFERENCED_TABLE_NAME IS NOT NULL

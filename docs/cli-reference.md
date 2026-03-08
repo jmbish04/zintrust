@@ -10,6 +10,7 @@
 - `zin prepare`: Prepare local dist/ for file: installs (dev workflow)
 - `zin migrate`: Run database migrations
 - `zin d1:migrate`: Run Cloudflare D1 migrations
+- `zin migrate-to-d1`: Migrate external databases (MySQL/PostgreSQL/SQLite/SQL Server) into D1
 - `zin config`: Manage project configuration
 - `zin start`: Start the application (dev watch, production, or Wrangler mode)
 - `zin docker` (aliases: `zin dk`, `zin dkr`): Run Wrangler dev using a Docker-backed Cloudflare Containers config
@@ -579,4 +580,76 @@ zin secrets doctor --provider aws|cloudflare
 ```bash
 zin templates list [mail|notification|all]
 zin templates render [mail|notification|all] <name>
+```
+
+### \`zin migrate-to-d1\`
+
+Migrates an external database (MySQL, PostgreSQL, SQLite, SQL Server) to a Cloudflare D1 local or remote database securely with checkpointing.
+
+> This command is available in the core ZinTrust CLI via integrated \`@zintrust/d1-migrator\` registration.
+
+**Usage:**
+\`zin migrate-to-d1 [--from driver] [--to target] [--source-connection uri] [--target-database name]\`
+
+The command resolves settings in this order: **CLI flag -> environment variable -> default**.
+
+**Env-only usage (no CLI flags):**
+
+```bash
+export DB_CONNECTION=mysql
+export DB_READ_HOSTS=127.0.0.1
+export DB_PORT=3306
+export DB_DATABASE=zintrust
+export DB_USERNAME=root
+export DB_PASSWORD=secret
+# Optional (defaults to "d1" when omitted)
+export D1_TARGET_DB=zintrust-live-test
+
+zin migrate-to-d1
+```
+
+**Options:**
+
+- \`-f, --from <type>\`: Source db type (\`mysql\`, \`postgresql\`, \`sqlite\`, \`sqlserver\`).
+- \`-t, --to <type>\`: Target db type (\`d1\` or \`d1-remote\`).
+- \`-s, --source-connection <uri>\`: Source connection string.
+- \`-d, --target-database <string>\`: D1 Database identifier (defaults to \`d1\`).
+- \`-b, --batch-size <number>\`: Pagination step for data chunking.
+- \`-r, --resume\`: Resume a previously failed migration state.
+- \`-i, --interactive\`: Approve schema modifications manually.
+
+**Supported env fallbacks:**
+
+- Driver: \`MIGRATE_TO_D1_FROM\`, \`MIGRATE_TO_D1_SOURCE_DRIVER\`, \`D1_MIGRATOR_SOURCE_DRIVER\`, \`DB_CONNECTION\`
+- Source URI: \`MIGRATE_TO_D1_SOURCE_CONNECTION\`, \`D1_MIGRATOR_SOURCE_CONNECTION\`, \`SOURCE_DATABASE_URL\`, \`DATABASE_URL\`, \`DB_URL\`
+- Target type: \`MIGRATE_TO_D1_TO\`, \`MIGRATE_TO_D1_TARGET_TYPE\`, \`D1_MIGRATOR_TARGET_TYPE\`, \`D1_TARGET_TYPE\`
+- Target DB: \`MIGRATE_TO_D1_TARGET_DATABASE\`, \`D1_MIGRATOR_TARGET_DATABASE\`, \`D1_TARGET_DB\`, \`D1_DATABASE\`, \`D1_DATABASE_ID\`, \`DB_DATABASE\`
+- Batch size: \`MIGRATE_TO_D1_BATCH_SIZE\`, \`D1_MIGRATOR_BATCH_SIZE\`
+- Checkpoint interval: \`MIGRATE_TO_D1_CHECKPOINT_INTERVAL\`, \`D1_MIGRATOR_CHECKPOINT_INTERVAL\`
+- Flags: \`MIGRATE*TO_D1_DRY_RUN\`, \`MIGRATE_TO_D1_SCHEMA_ONLY\`, \`MIGRATE_TO_D1_INTERACTIVE\`, \`MIGRATE_TO_D1_RESUME\` (and matching \`D1_MIGRATOR*\*\` variants)
+- Migration id: \`MIGRATE_TO_D1_MIGRATION_ID\`, \`D1_MIGRATOR_MIGRATION_ID\`
+
+If source URI is omitted, the command auto-builds it from \`DB\_\*\` settings (or \`DB_PATH\`/\`DB_DATABASE\` for SQLite). Host fallback prefers \`DB_READ_HOSTS\`, then \`DB_HOSTS\`, then \`DB_HOST\`.
+
+**Live test configuration (MySQL -> local D1):**
+
+```bash
+DB_PORT=3306
+DB_DATABASE=zintrust
+DB_USERNAME=root
+DB_PASSWORD=sdf2434sde43
+DB_READ_HOSTS=127.0.0.1
+```
+
+**Live test example:**
+
+```bash
+LOG_LEVEL=error \
+zin migrate-to-d1 \
+  --from mysql \
+  --source-connection "mysql://${DB_USERNAME}:${DB_PASSWORD}@${DB_READ_HOSTS}:${DB_PORT}/${DB_DATABASE}" \
+  --to d1 \
+  --target-database zintrust-live-test \
+  --batch-size 1000 \
+  --checkpoint-interval 5000
 ```

@@ -305,12 +305,42 @@ function maybeSkipBecausePublished({ pkg }) {
   }
 }
 
+function transformD1MigratorDependenciesForPublish(pkg) {
+  // d1-migrator has local file: dependencies that need to be converted to published versions
+  if (pkg.name !== '@zintrust/d1-migrator') return pkg;
+
+  const transformed = { ...pkg };
+  if (transformed.dependencies) {
+    transformed.dependencies = { ...transformed.dependencies };
+
+    // Convert file: paths to published versions
+    const fileDeps = [
+      '@zintrust/db-mysql',
+      '@zintrust/db-postgres',
+      '@zintrust/db-sqlite',
+      '@zintrust/db-sqlserver',
+      '@zintrust/db-d1',
+    ];
+
+    fileDeps.forEach((dep) => {
+      if (transformed.dependencies[dep]?.startsWith('file:')) {
+        transformed.dependencies[dep] = pkg.version; // Use same version as core
+      }
+    });
+  }
+
+  return transformed;
+}
+
 async function processPackageDir({ dirName, coreVersion, failures, successes, checkIssues }) {
   const pkgDir = path.join(packagesDir, dirName);
   const pkgJsonPath = path.join(pkgDir, 'package.json');
 
-  const pkg = await loadPackageJson(pkgJsonPath);
+  let pkg = await loadPackageJson(pkgJsonPath);
   if (!pkg) return;
+
+  // Transform dependencies for d1-migrator
+  pkg = transformD1MigratorDependenciesForPublish(pkg);
 
   const eligibility = evaluateEligibility({ pkg, coreVersion });
   if (eligibility.shouldSkip) {
@@ -332,6 +362,9 @@ async function processPackageDir({ dirName, coreVersion, failures, successes, ch
   announcePublishAttempt({ pkg, coreVersion });
 
   try {
+    // Write transformed package.json for build
+    await fs.writeFile(pkgJsonPath, JSON.stringify(pkg, null, 2));
+
     installCoreShimIntoPackage(pkgDir);
     buildPackage(pkgDir);
     publishPackage(pkgDir);
