@@ -3,11 +3,11 @@
  * Type definitions for migration operations
  */
 
-import type { SupportedDriver } from '@migrations/enum';
+export type SourceDatabaseDriver = 'mysql' | 'postgresql' | 'sqlite' | 'sqlserver';
 
 export interface MigrationConfig {
   sourceConnection: string;
-  sourceDriver: SupportedDriver;
+  sourceDriver: SourceDatabaseDriver;
   targetDatabase: string;
   targetType: 'd1' | 'd1-remote';
   batchSize?: number;

@@ -28,7 +28,7 @@
     "access": "public"
   },
   "dependencies": {
-    "better-sqlite3": "^12.5.0"
+    "better-sqlite3": "^12.6.2"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

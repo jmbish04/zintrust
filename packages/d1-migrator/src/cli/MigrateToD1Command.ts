@@ -11,6 +11,446 @@ import type { MigrationConfig } from '../types';
 import { DataMigrator } from './DataMigrator';
 import { SchemaAnalyzer } from './SchemaAnalyzer';
 
+type SourceDriver = MigrationConfig['sourceDriver'];
+type TargetType = MigrationConfig['targetType'];
+
+const SOURCE_DRIVER_MAP: Readonly<Record<string, SourceDriver>> = Object.freeze({
+  mysql: 'mysql',
+  postgresql: 'postgresql',
+  postgres: 'postgresql',
+  sqlite: 'sqlite',
+  sqlserver: 'sqlserver',
+  mssql: 'sqlserver',
+});
+
+const TARGET_TYPE_MAP: Readonly<Record<string, TargetType>> = Object.freeze({
+  d1: 'd1',
+  'd1-remote': 'd1-remote',
+  d1remote: 'd1-remote',
+  remote: 'd1-remote',
+});
+
+const SOURCE_DRIVER_ENV_KEYS = Object.freeze([
+  'MIGRATE_TO_D1_FROM',
+  'MIGRATE_TO_D1_SOURCE_DRIVER',
+  'D1_MIGRATOR_SOURCE_DRIVER',
+  'DB_CONNECTION',
+]);
+
+const SOURCE_CONNECTION_ENV_KEYS = Object.freeze([
+  'MIGRATE_TO_D1_SOURCE_CONNECTION',
+  'D1_MIGRATOR_SOURCE_CONNECTION',
+  'SOURCE_DATABASE_URL',
+  'DATABASE_URL',
+  'DB_URL',
+]);
+
+const TARGET_TYPE_ENV_KEYS = Object.freeze([
+  'MIGRATE_TO_D1_TO',
+  'MIGRATE_TO_D1_TARGET_TYPE',
+  'D1_MIGRATOR_TARGET_TYPE',
+  'D1_TARGET_TYPE',
+]);
+
+const TARGET_DATABASE_ENV_KEYS = Object.freeze([
+  'MIGRATE_TO_D1_TARGET_DATABASE',
+  'D1_MIGRATOR_TARGET_DATABASE',
+  'D1_TARGET_DB',
+  'D1_DATABASE',
+  'D1_DATABASE_ID',
+  'DB_DATABASE',
+]);
+
+const readOptionString = (options: CommandOptions, keys: readonly string[]): string | undefined => {
+  for (const key of keys) {
+    const optionValue = options[key];
+    if (typeof optionValue !== 'string') {
+      continue;
+    }
+
+    const trimmed = optionValue.trim();
+    if (trimmed.length > 0) {
+      return trimmed;
+    }
+  }
+
+  return undefined;
+};
+
+const readOptionFlag = (options: CommandOptions, keys: readonly string[]): boolean =>
+  keys.some((key) => options[key] === true);
+
+const readEnvString = (keys: readonly string[]): string | undefined => {
+  if (typeof process === 'undefined' || process.env === undefined) {
+    return undefined;
+  }
+
+  for (const key of keys) {
+    const value = process.env[key];
+    if (typeof value !== 'string') {
+      continue;
+    }
+
+    const trimmed = value.trim();
+    if (trimmed.length > 0) {
+      return trimmed;
+    }
+  }
+
+  return undefined;
+};
+
+const readEnvBool = (keys: readonly string[]): boolean | undefined => {
+  const value = readEnvString(keys);
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const normalized = value.toLowerCase();
+  if (normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on') {
+    return true;
+  }
+
+  if (normalized === '0' || normalized === 'false' || normalized === 'no' || normalized === 'off') {
+    return false;
+  }
+
+  throw ErrorFactory.createValidationError(
+    `Invalid boolean value: "${value}". Expected true/false, 1/0, yes/no, or on/off`
+  );
+};
+
+const parsePositiveInt = (value: string, label: string): number => {
+  const parsed = Number.parseInt(value, 10);
+
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw ErrorFactory.createValidationError(`${label} must be a positive integer`);
+  }
+
+  return parsed;
+};
+
+const readPositiveIntSetting = (
+  options: CommandOptions,
+  optionKeys: readonly string[],
+  envKeys: readonly string[],
+  defaultValue: number,
+  label: string
+): number => {
+  const fromOption = readOptionString(options, optionKeys);
+  if (fromOption !== undefined) {
+    return parsePositiveInt(fromOption, label);
+  }
+
+  const fromEnv = readEnvString(envKeys);
+  if (fromEnv !== undefined) {
+    return parsePositiveInt(fromEnv, label);
+  }
+
+  return defaultValue;
+};
+
+const resolveFlag = (
+  options: CommandOptions,
+  optionKeys: readonly string[],
+  envKeys: readonly string[]
+): boolean => {
+  if (readOptionFlag(options, optionKeys)) {
+    return true;
+  }
+
+  return readEnvBool(envKeys) === true;
+};
+
+const normalizeSourceDriver = (value: string | undefined): SourceDriver | undefined => {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  return SOURCE_DRIVER_MAP[value.trim().toLowerCase()];
+};
+
+const normalizeTargetType = (value: string | undefined): TargetType | undefined => {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  return TARGET_TYPE_MAP[value.trim().toLowerCase()];
+};
+
+const resolveSourceDriver = (options: CommandOptions): SourceDriver => {
+  const fromOption = readOptionString(options, ['from']);
+  const fromEnv = readEnvString(SOURCE_DRIVER_ENV_KEYS);
+  const configuredValue = fromOption ?? fromEnv;
+  const sourceDriver = normalizeSourceDriver(configuredValue);
+
+  if (configuredValue !== undefined && sourceDriver === undefined) {
+    throw ErrorFactory.createValidationError(
+      `Unsupported source driver: ${configuredValue}. Expected mysql, postgresql, sqlite, or sqlserver`
+    );
+  }
+
+  if (sourceDriver === undefined) {
+    throw ErrorFactory.createValidationError(
+      'Source driver is required. Use --from or set MIGRATE_TO_D1_FROM/DB_CONNECTION'
+    );
+  }
+
+  return sourceDriver;
+};
+
+const extractFirstHost = (value: string | undefined, fallback: string): string => {
+  if (value === undefined || value.trim().length === 0) {
+    return fallback;
+  }
+
+  const host = value
+    .split(',')
+    .map((entry) => entry.trim())
+    .find((entry) => entry.length > 0);
+
+  return host ?? fallback;
+};
+
+type NetworkSourceDetails = {
+  scheme: 'mysql' | 'postgresql' | 'mssql';
+  host: string;
+  port: number;
+  database: string;
+  username: string;
+  password: string;
+};
+
+const buildNetworkConnectionString = ({
+  scheme,
+  host,
+  port,
+  database,
+  username,
+  password,
+}: NetworkSourceDetails): string => {
+  const encodedUser = encodeURIComponent(username);
+  const encodedPassword = encodeURIComponent(password);
+  const encodedDatabase = encodeURIComponent(database);
+
+  let auth = '';
+
+  if (encodedUser.length > 0) {
+    auth = `${encodedUser}@`;
+
+    if (encodedPassword.length > 0) {
+      auth = `${encodedUser}:${encodedPassword}@`;
+    }
+  }
+
+  return `${scheme}://${auth}${host}:${port}/${encodedDatabase}`;
+};
+
+const resolveNetworkPort = (keys: readonly string[], fallback: number): number => {
+  const value = readEnvString(keys);
+  if (value === undefined) {
+    return fallback;
+  }
+
+  return parsePositiveInt(value, 'Source port');
+};
+
+const buildSourceConnectionFromDbEnv = (sourceDriver: SourceDriver): string | undefined => {
+  if (sourceDriver === 'sqlite') {
+    return readEnvString([
+      'MIGRATE_TO_D1_SQLITE_PATH',
+      'D1_MIGRATOR_SQLITE_PATH',
+      'DB_PATH',
+      'DB_DATABASE',
+    ]);
+  }
+
+  if (sourceDriver === 'mysql') {
+    const host = extractFirstHost(
+      readEnvString(['MIGRATE_TO_D1_SOURCE_HOST', 'DB_READ_HOSTS', 'DB_HOSTS', 'DB_HOST']),
+      '127.0.0.1'
+    );
+
+    return buildNetworkConnectionString({
+      scheme: 'mysql',
+      host,
+      port: resolveNetworkPort(['MIGRATE_TO_D1_SOURCE_PORT', 'DB_PORT'], 3306),
+      database: readEnvString(['MIGRATE_TO_D1_SOURCE_DATABASE', 'DB_DATABASE']) ?? 'zintrust',
+      username: readEnvString(['MIGRATE_TO_D1_SOURCE_USERNAME', 'DB_USERNAME']) ?? 'root',
+      password: readEnvString(['MIGRATE_TO_D1_SOURCE_PASSWORD', 'DB_PASSWORD']) ?? '',
+    });
+  }
+
+  if (sourceDriver === 'postgresql') {
+    const host = extractFirstHost(
+      readEnvString([
+        'MIGRATE_TO_D1_SOURCE_HOST',
+        'DB_READ_HOSTS_POSTGRESQL',
+        'DB_READ_HOSTS',
+        'DB_HOSTS',
+        'DB_HOST',
+      ]),
+      '127.0.0.1'
+    );
+
+    return buildNetworkConnectionString({
+      scheme: 'postgresql',
+      host,
+      port: resolveNetworkPort(
+        ['MIGRATE_TO_D1_SOURCE_PORT', 'DB_PORT_POSTGRESQL', 'DB_PORT'],
+        5432
+      ),
+      database:
+        readEnvString(['MIGRATE_TO_D1_SOURCE_DATABASE', 'DB_DATABASE_POSTGRESQL', 'DB_DATABASE']) ??
+        'postgres',
+      username:
+        readEnvString(['MIGRATE_TO_D1_SOURCE_USERNAME', 'DB_USERNAME_POSTGRESQL', 'DB_USERNAME']) ??
+        'postgres',
+      password:
+        readEnvString(['MIGRATE_TO_D1_SOURCE_PASSWORD', 'DB_PASSWORD_POSTGRESQL', 'DB_PASSWORD']) ??
+        '',
+    });
+  }
+
+  const host = extractFirstHost(
+    readEnvString([
+      'MIGRATE_TO_D1_SOURCE_HOST',
+      'DB_READ_HOSTS_MSSQL',
+      'DB_HOSTS',
+      'DB_HOST_MSSQL',
+      'DB_HOST',
+    ]),
+    '127.0.0.1'
+  );
+
+  return buildNetworkConnectionString({
+    scheme: 'mssql',
+    host,
+    port: resolveNetworkPort(['MIGRATE_TO_D1_SOURCE_PORT', 'DB_PORT_MSSQL', 'DB_PORT'], 1433),
+    database:
+      readEnvString(['MIGRATE_TO_D1_SOURCE_DATABASE', 'DB_DATABASE_MSSQL', 'DB_DATABASE']) ??
+      'zintrust',
+    username:
+      readEnvString(['MIGRATE_TO_D1_SOURCE_USERNAME', 'DB_USERNAME_MSSQL', 'DB_USERNAME']) ?? 'sa',
+    password:
+      readEnvString(['MIGRATE_TO_D1_SOURCE_PASSWORD', 'DB_PASSWORD_MSSQL', 'DB_PASSWORD']) ?? '',
+  });
+};
+
+const resolveSourceConnection = (options: CommandOptions, sourceDriver: SourceDriver): string => {
+  const fromOption = readOptionString(options, ['source-connection', 'sourceConnection']);
+  if (fromOption !== undefined) {
+    return fromOption;
+  }
+
+  const fromEnv = readEnvString(SOURCE_CONNECTION_ENV_KEYS);
+  if (fromEnv !== undefined) {
+    return fromEnv;
+  }
+
+  const fromDbEnv = buildSourceConnectionFromDbEnv(sourceDriver);
+  if (fromDbEnv !== undefined && fromDbEnv.trim().length > 0) {
+    return fromDbEnv;
+  }
+
+  throw ErrorFactory.createValidationError(
+    'Source connection is required. Use --source-connection or set MIGRATE_TO_D1_SOURCE_CONNECTION (or DB_* variables)'
+  );
+};
+
+const resolveTargetType = (options: CommandOptions): TargetType => {
+  const fromOption = readOptionString(options, ['to']);
+  const fromEnv = readEnvString(TARGET_TYPE_ENV_KEYS);
+  const configuredValue = fromOption ?? fromEnv;
+  const targetType = normalizeTargetType(configuredValue);
+
+  if (configuredValue !== undefined && targetType === undefined) {
+    throw ErrorFactory.createValidationError(
+      `Unsupported target type: ${configuredValue}. Expected d1 or d1-remote`
+    );
+  }
+
+  return targetType ?? 'd1';
+};
+
+const resolveTargetDatabase = (options: CommandOptions): string => {
+  const fromOption = readOptionString(options, ['target-database', 'targetDatabase']);
+  if (fromOption !== undefined) {
+    return fromOption;
+  }
+
+  const fromEnv = readEnvString(TARGET_DATABASE_ENV_KEYS);
+  if (fromEnv !== undefined) {
+    return fromEnv;
+  }
+
+  return 'd1';
+};
+
+const resolveMigrationConfig = (
+  options: CommandOptions
+): {
+  config: MigrationConfig;
+  schemaOnly: boolean;
+} => {
+  const sourceDriver = resolveSourceDriver(options);
+  const sourceConnection = resolveSourceConnection(options, sourceDriver);
+  const targetDatabase = resolveTargetDatabase(options);
+  const targetType = resolveTargetType(options);
+
+  const dryRun = resolveFlag(
+    options,
+    ['dry-run', 'dryRun'],
+    ['MIGRATE_TO_D1_DRY_RUN', 'D1_MIGRATOR_DRY_RUN']
+  );
+  const schemaOnly = resolveFlag(
+    options,
+    ['schema-only', 'schemaOnly'],
+    ['MIGRATE_TO_D1_SCHEMA_ONLY', 'D1_MIGRATOR_SCHEMA_ONLY']
+  );
+  const interactive = resolveFlag(
+    options,
+    ['interactive'],
+    ['MIGRATE_TO_D1_INTERACTIVE', 'D1_MIGRATOR_INTERACTIVE']
+  );
+  const resume = resolveFlag(options, ['resume'], ['MIGRATE_TO_D1_RESUME', 'D1_MIGRATOR_RESUME']);
+
+  const migrationId =
+    readOptionString(options, ['migration-id', 'migrationId']) ??
+    readEnvString(['MIGRATE_TO_D1_MIGRATION_ID', 'D1_MIGRATOR_MIGRATION_ID']);
+
+  if (resume && migrationId === undefined) {
+    throw ErrorFactory.createValidationError('Migration ID is required when resuming');
+  }
+
+  return {
+    config: {
+      sourceConnection,
+      sourceDriver,
+      targetDatabase,
+      targetType,
+      batchSize: readPositiveIntSetting(
+        options,
+        ['batch-size', 'batchSize'],
+        ['MIGRATE_TO_D1_BATCH_SIZE', 'D1_MIGRATOR_BATCH_SIZE'],
+        1000,
+        'Batch size'
+      ),
+      checkpointInterval: readPositiveIntSetting(
+        options,
+        ['checkpoint-interval', 'checkpointInterval'],
+        ['MIGRATE_TO_D1_CHECKPOINT_INTERVAL', 'D1_MIGRATOR_CHECKPOINT_INTERVAL'],
+        10000,
+        'Checkpoint interval'
+      ),
+      dryRun,
+      interactive,
+      migrationId,
+    },
+    schemaOnly,
+  };
+};
+
 /**
  * MigrateToD1Command - CLI command for D1 migration
  * Uses BaseCommand factory following ZinTrust patterns
@@ -18,16 +458,16 @@ import { SchemaAnalyzer } from './SchemaAnalyzer';
 export const MigrateToD1Command = BaseCommand.create({
   name: 'migrate-to-d1',
   description: 'Migrate any database to Cloudflare D1 with resumable operations',
-  aliases: ['d1:migrate'],
+  aliases: ['d1:transfer'],
 
   addOptions: (command) => {
     command
       .option('-f, --from <type>', 'Source database type (mysql, postgresql, sqlite, sqlserver)')
-      .option('-t, --to <type>', 'Target D1 type (d1, d1-remote)', 'd1')
+      .option('-t, --to <type>', 'Target D1 type (d1, d1-remote)')
       .option('-s, --source-connection <string>', 'Source database connection string')
       .option('-d, --target-database <string>', 'Target D1 database name')
-      .option('-b, --batch-size <number>', 'Batch size for data migration', '1000')
-      .option('-c, --checkpoint-interval <number>', 'Checkpoint interval in rows', '10000')
+      .option('-b, --batch-size <number>', 'Batch size for data migration')
+      .option('-c, --checkpoint-interval <number>', 'Checkpoint interval in rows')
       .option('--dry-run', 'Perform dry run without actual migration')
       .option('--schema-only', 'Only analyze and convert schema, no data migration')
       .option('-i, --interactive', 'Interactive mode for complex migrations')
@@ -39,24 +479,20 @@ export const MigrateToD1Command = BaseCommand.create({
     try {
       Logger.info('Starting D1 migration process...');
 
-      const config: MigrationConfig = {
-        sourceConnection: options['source-connection'] as string,
-        sourceDriver: options['from'] as 'mysql' | 'postgresql' | 'sqlite' | 'sqlserver',
-        targetDatabase: options['target-database'] as string,
-        targetType: options['to'] as 'd1' | 'd1-remote',
-        batchSize: Number.parseInt((options['batch-size'] as string) || '1000'),
-        checkpointInterval: Number.parseInt((options['checkpoint-interval'] as string) || '10000'),
-        dryRun: options['dry-run'] as boolean,
-        interactive: options['interactive'] as boolean,
-        migrationId: options['migration-id'] as string,
-      };
-
-      if (options['resume'] && !config.migrationId) {
-        throw ErrorFactory.createValidationError('Migration ID is required when resuming');
+      const { config, schemaOnly } = resolveMigrationConfig(options);
+      const configValidation = validateConfig(config);
+      if (!configValidation.valid) {
+        throw ErrorFactory.createValidationError(
+          `Invalid migration configuration: ${configValidation.errors.join(', ')}`
+        );
       }
 
       if (config.dryRun) {
         Logger.info('Running in dry-run mode - no actual changes will be made');
+      }
+
+      if (schemaOnly) {
+        Logger.info('Running in schema-only mode - data migration will be skipped');
       }
 
       // Execute migration process
@@ -96,6 +532,11 @@ export const MigrateToD1Command = BaseCommand.create({
 
       if (config.dryRun) {
         Logger.info('Dry run completed - no actual changes made');
+        return;
+      }
+
+      if (schemaOnly) {
+        Logger.info('Schema-only execution completed');
         return;
       }
 
