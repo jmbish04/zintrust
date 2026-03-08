@@ -25,7 +25,8 @@
     "@google-cloud/storage": "^7.19.0"
   },
   "overrides": {
-    "fast-xml-parser": "^5.4.1"
+    "fast-xml-parser": "^5.4.1",
+    "@tootallnate/once": "^3.0.1"
   },
   "peerDependencies": {
     "@zintrust/core": "file:../../dist"
