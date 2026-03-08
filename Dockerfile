@@ -8,8 +8,9 @@ WORKDIR /app
 ENV NPM_CONFIG_CACHE=/root/.npm
 ENV NPM_CONFIG_PREFER_OFFLINE=true
 
-# Install build dependencies for native modules (better-sqlite3, bcrypt)
-RUN apk add --no-cache g++ git make python3
+# Upgrade Alpine base packages first so OS-level security fixes land in the image.
+RUN apk upgrade --no-cache \
+  && apk add --no-cache g++ git make python3
 
 # Patch npm (base image includes npm 10.x with vulnerable bundled deps)
 ARG NPM_VERSION=11.10.0
@@ -51,7 +52,9 @@ ENV PORT=7772
 ENV HOST=0.0.0.0
 
 # Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && adduser -u 1001 -S -G nodejs nodejs
+RUN apk upgrade --no-cache \
+  && addgroup -g 1001 -S nodejs \
+  && adduser -u 1001 -S -G nodejs nodejs
 
 # Patch npm (base image includes npm 10.x with vulnerable bundled deps)
 ARG NPM_VERSION=11.10.0

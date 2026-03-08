@@ -122,6 +122,7 @@ async function assertCoreShimHasRequiredExports() {
 
   const requiredTokens = [
     'export declare const NodeSingletons: {',
+    'EventEmitter: any;',
     'randomBytes: (size: number) => any;',
     'createHash: (algorithm: string) => any;',
     'export declare const MultipartParserRegistry: any;',
@@ -335,42 +336,54 @@ function transformD1MigratorDependenciesForPublish(pkg) {
 async function processPackageDir({ dirName, coreVersion, failures, successes, checkIssues }) {
   const pkgDir = path.join(packagesDir, dirName);
   const pkgJsonPath = path.join(pkgDir, 'package.json');
+  const originalPkgText = await fs.readFile(pkgJsonPath, 'utf8');
 
-  let pkg = await loadPackageJson(pkgJsonPath);
-  if (!pkg) return;
+  const pkg = JSON.parse(originalPkgText);
+  const publishPkg = transformD1MigratorDependenciesForPublish(pkg);
+  const publishPkgText = JSON.stringify(publishPkg, null, 2);
 
-  // Transform dependencies for d1-migrator
-  pkg = transformD1MigratorDependenciesForPublish(pkg);
-
-  const eligibility = evaluateEligibility({ pkg, coreVersion });
+  const eligibility = evaluateEligibility({ pkg: publishPkg, coreVersion });
   if (eligibility.shouldSkip) {
     process.stdout.write(`${eligibility.skipMessage}\n`);
     return;
   }
 
-  const publishedCheck = maybeSkipBecausePublished({ pkg });
+  const publishedCheck = maybeSkipBecausePublished({ pkg: publishPkg });
   if (publishedCheck.checkIssue) {
     checkIssues.push({ dirName, ...publishedCheck.checkIssue });
     emitGithubError(
       'Publish check failed',
-      `${pkg.name}@${pkg.version} (${dirName}): ${publishedCheck.checkIssue.message}`
+      `${publishPkg.name}@${publishPkg.version} (${dirName}): ${publishedCheck.checkIssue.message}`
     );
     if (!continueOnError) throw new Error(publishedCheck.checkIssue.message);
   }
   if (publishedCheck.shouldSkip) return;
 
-  announcePublishAttempt({ pkg, coreVersion });
+  announcePublishAttempt({ pkg: publishPkg, coreVersion });
 
   try {
-    // Write transformed package.json for build
-    await fs.writeFile(pkgJsonPath, JSON.stringify(pkg, null, 2));
-
     installCoreShimIntoPackage(pkgDir);
     buildPackage(pkgDir);
+
+    // d1-migrator builds against local file: adapters, then publishes with semver deps.
+    if (publishPkgText !== originalPkgText) {
+      await fs.writeFile(pkgJsonPath, publishPkgText);
+    }
+
     publishPackage(pkgDir);
-    successes.push({ dirName, name: pkg.name, version: pkg.version });
+    successes.push({ dirName, name: publishPkg.name, version: publishPkg.version });
   } catch (err) {
-    recordFailureAndMaybeThrow({ failures, dirName, pkg, err, title: 'Package publish failed' });
+    recordFailureAndMaybeThrow({
+      failures,
+      dirName,
+      pkg: publishPkg,
+      err,
+      title: 'Package publish failed',
+    });
+  } finally {
+    if (publishPkgText !== originalPkgText) {
+      await fs.writeFile(pkgJsonPath, originalPkgText);
+    }
   }
 }
 
@@ -428,6 +441,7 @@ export declare const NodeSingletons: {
   fs: any;
   path: any;
   os: any;
+  EventEmitter: any;
   randomBytes: (size: number) => any;
   createHash: (algorithm: string) => any;
 };
@@ -526,6 +540,23 @@ export const NodeSingletons = {
   fs: {},
   path: {},
   os: {},
+  EventEmitter: class {
+    on() {
+      return this;
+    }
+    off() {
+      return this;
+    }
+    emit() {
+      return false;
+    }
+    listenerCount() {
+      return 0;
+    }
+    setMaxListeners() {
+      return this;
+    }
+  },
   randomBytes() {
     return { toString() { return ''; } };
   },
