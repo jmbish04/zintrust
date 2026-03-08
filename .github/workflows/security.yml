@@ -49,7 +49,9 @@ jobs:
           args: --severity-threshold=high
 
       - name: Run Trivy vulnerability scanner (Repo)
-        uses: aquasecurity/trivy-action@22438a435773de8c97dc0958cc0b823c45b064ac # master
+        uses: aquasecurity/trivy-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           scan-type: 'fs'
           ignore-unfixed: true

@@ -12,6 +12,9 @@
   // PROJECT METADATA
   // ============================================================================
   "name": "zintrust",
+  "main": "src/start.ts",
+  "compatibility_date": "2026-03-08",
+  "compatibility_flags": ["nodejs_compat"],
 
   // ============================================================================
   // PATH ALIASES
