@@ -24,7 +24,7 @@ jobs:
         github.event.workflow_run.head_branch == 'release' &&
         !startsWith(github.event.workflow_run.head_commit.message || '', 'chore(release):')
       }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.pull_request.head.repo.full_name && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || fromJSON('["self-hosted","Linux","X64","proxmox-actions"]') }}
     timeout-minutes: 15
     steps:
       - name: Checkout release
